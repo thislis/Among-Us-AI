@@ -1,0 +1,23 @@
+class Offsets:
+    """메모리 오프셋 상수 중앙 정의"""
+    # TypeInfo RVA
+    PC_TYPEINFO_RVA = 0x29861fc
+    NPI_TYPEINFO_RVA = 0x29B7DD8
+    GAMEDATA_TYPEINFO_RVA = 0x29933B0
+    LIST_NPI_TYPEINFO_RVA = 0x298ECBC
+    LIST_TASKINFO_TYPEINFO_RVA = 0x2994A70
+
+    # 기본 오프셋
+    IL2CPPCLASS_STATIC_FIELDS_OFF = 0x5c
+    OBJ_FIELDS_OFF_X86 = 0x8
+    OBJ_FIELDS_OFF_X64 = 0x10
+    IL2CPP_ARRAY_VECTOR_OFF_X86 = 0x10
+    IL2CPP_ARRAY_VECTOR_OFF_X64 = 0x20
+
+    # PlayerControl
+    PC_STATIC_LOCALPLAYER_OFF = 0x0
+    PC_FIELDS_NetTransform = 0x90
+
+    # CustomNetworkTransform
+    CNT_FIELDS_lastPosition = 0x3c
+    CNT_FIELDS_lastPosSent = 0x44
