@@ -10,6 +10,7 @@ import multiprocessing as mp
 from multiprocessing.connection import Connection 
 import redis
 import json
+import os
 
 from amongus_reader import AmongUsReader
 from amongus_reader.tools.check_player_death import get_player_death_status
@@ -17,6 +18,33 @@ from amongus_reader.tools.check_player_death import get_player_death_status
 from locator import place
 
 from collections import deque
+
+
+def _load_redis_credentials(filename: Optional[str] = None) -> Optional[Dict[str, str]]:
+    """
+    외부 JSON 파일에서 Redis 접속 정보를 읽어옵니다.
+    기본 파일명은 현재 파일과 같은 디렉터리의 `redis_credentials.json` 입니다.
+    반환값 예: {"host": "127.0.0.1", "port": 6379, "password": "secret"}
+    파일이 없거나 읽기 실패 시 None을 반환합니다.
+    """
+    if filename is None:
+        filename = os.path.join(os.path.dirname(__file__), "redis_credentials.json")
+
+    if not os.path.exists(filename):
+        return None
+
+    try:
+        with open(filename, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+            # Normalize keys as strings
+            creds = {
+                "host": data.get("host") or data.get("redis_host"),
+                "port": data.get("port") or data.get("redis_port"),
+                "password": data.get("password") or data.get("redis_password")
+            }
+            return creds
+    except Exception:
+        return None
 
 def can_see(me, opp, is_imposter):
     x1, y1 = me; x2, y2 = opp
@@ -46,6 +74,20 @@ class InfoPipe:
                  redis_host: str = 'localhost', 
                  redis_port: int = 6379, 
                  redis_password: str = None):
+        # If any redis param is None or default and a credentials file exists,
+        # prefer loading credentials from external file for security.
+        creds = _load_redis_credentials()
+        if creds:
+            # only override when user didn't explicitly pass non-default values
+            if redis_host in (None, 'localhost') and creds.get('host'):
+                redis_host = creds.get('host')
+            if redis_port in (None, 6379) and creds.get('port'):
+                try:
+                    redis_port = int(creds.get('port'))
+                except Exception:
+                    redis_port = creds.get('port')
+            if redis_password in (None, '') and creds.get('password'):
+                redis_password = creds.get('password')
         self.camera = Camera()
         self.service = AmongUsReader()
 
@@ -273,9 +315,13 @@ def _pipe_process(child_conn: Connection):
     부모의 요청(interrupt)이 있는지 'poll'로 확인합니다.
     """
     print("[InfoPipe Process] 비동기 수집기 프로세스 시작됨.")
-    pipe = InfoPipe(redis_host="134.185.110.57",
-                    redis_port="16379",
-                    redis_password="AmongSus")
+    # 우선 외부 자격증명 파일을 시도해서 로드합니다. 없으면 하드코딩된 기본값으로 대체합니다.
+    creds = _load_redis_credentials()
+    pipe = None
+    if creds:
+        pipe = InfoPipe(redis_host=creds.get("host"),
+                        redis_port=creds.get("port"),
+                        redis_password=creds.get("password"))
     running = True
     update_freq = 0.01
 
