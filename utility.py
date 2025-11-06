@@ -17,27 +17,39 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/task-solvers")
 from report import can_report
 from kill import can_kill
 from task_utility import click_use
-from info_pipe import pipewrapper, PipeController
+from amongus_reader import AmongUsReader
+from amongus_reader.service.task_lookup import TASK_TYPE_NAMES
+from amongus_reader.tools.check_player_death import get_player_death_status
+from locator import place
+from info_pipe import pipewrapper, PipeController, can_see
 
 controller: PipeController = None # controller를 None으로 초기화
+service: AmongUsReader = None
 
 def initialize_controller():
     """
     메인 프로그램에서 호출할 컨트롤러 초기화 함수.
     전역 controller 변수를 설정합니다.
     """
-    global controller
-    if controller is None:
-        print("[Utility] PipeController를 초기화합니다...")
-        controller = PipeController(pipewrapper())
+    global controller, service
+    # if controller is None:
+    #     print("[Utility] PipeController를 초기화합니다...")
+    #     controller = PipeController(pipewrapper())
+    if service is None:
+        print("[Utility] AmongUsReader를 초기화합니다...")
+        service = AmongUsReader()
 
 def close_controller():
     """메인 프로그램 종료 시 컨트롤러를 닫는 함수."""
-    global controller
-    if controller:
-        print("[Utility] PipeController를 닫습니다...")
-        controller.close()
-        controller = None
+    global controller, service
+    # if controller:
+    #     print("[Utility] PipeController를 닫습니다...")
+    #     controller.close()
+    #     controller = None
+    if service:
+        print("[Utility] AmongUsReader를 닫습니다...")
+        service.detach()
+        service = None
 
 SHIP_TASK_TYPES = {}
 
@@ -88,10 +100,45 @@ def load_graph_list(map_name) -> list:
         return []
 
 def getGameData():
-    if controller is None:
-        raise RuntimeError("Controller가 초기화되지 않았습니다. main.py에서 initialize_controller()를 먼저 호출해야 합니다.")
-    data = controller.get_game_data()
-    return data
+    player = service.get_local_player()
+    status = "impostor" if service.is_local_impostor() else "crewmate"
+    players = service.list_players()
+    nearbyPlayers = {}
+    for pl in players:
+        if not pl.is_local_player:
+            if can_see(player.position, pl.position, status=="impostor"):
+                nearbyPlayers[pl.color_id] = pl.position
+
+    pos_map = service.positions()
+    my_pos = pos_map.get(player.color_id) if player.color_id is not None else None
+
+    tasks_info = service.get_tasks(player.color_id)
+    tasks = [TASK_TYPE_NAMES[t.task_type_id] for t in tasks_info]
+    task_locations = [t.location for t in tasks_info]
+    task_steps = [f"{t.step}/{t.max_step}" for t in tasks_info]
+    map_id = "SHIP"
+    dead, diag = get_player_death_status(service._ds, player.color_id)
+    lights = 1
+    playersVent = {}
+    playersDead = {}
+    
+    return {
+        "position": my_pos,
+        "status": status,
+        "tasks": tasks,
+        "task_locations": task_locations,
+        "task_steps": task_steps,
+        "map_id": map_id,
+        "dead": dead,
+        "inMeeting": False,
+        "speed": 2.0,
+        "color": player.color_name.upper(),
+        "room": place(*my_pos),
+        "lights": lights, # TODO: 조명 상태 확인 로직 추가
+        "nearbyPlayers": nearbyPlayers,
+        "playersVent": playersVent, # TODO: 환풍구 상태 확인 로직 추가
+        "playersDead": playersDead
+    }
 
 def getImposterData() -> dict:
     """
@@ -752,9 +799,12 @@ def update_move_list(move_list, old_tasks, tsk):
     return task
 
 def in_meeting() -> bool:
-    data = getGameData()
-
-    return data["inMeeting"]
+    meet = False
+    # if not controller:
+    #     meet = False
+    # else:
+    #     meet = controller.is_meeting()
+    return meet
 
 def isImpostor() -> bool:
     data = getGameData()
@@ -920,6 +970,7 @@ def move(dest_list : list, G = None) -> int:
         data = getGameData()
 
         pos = data["position"]
+        print(f"current pos: {pos}")
 
         for loc in PB_DOOR_LOCATIONS:
             if (dist(pos, loc) < 1) and not clicked_use:
