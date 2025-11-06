@@ -133,13 +133,8 @@ class AmongUsReader:
         # Use DS fast path; avoids requiring list refresh
         return self._players.get_local_player_id()
 
-    def get_player(self, player_id: int) -> Optional[PlayerData]:
-        players = self._cache.get("players")
-        if players is not None:
-            for p in players:
-                if p.player_id == player_id:
-                    return p
-        return self._players.get_by_id(player_id)
+    def get_player(self, color_id: Union[int, ColorId]) -> Optional[PlayerData]:
+        return self.find_player_by_color(color_id)
 
     def find_player_by_color(self, color_id: Union[int, ColorId]) -> Optional[PlayerData]:
         # Normalize ColorId
@@ -169,25 +164,29 @@ class AmongUsReader:
         return self._players.count()
 
     # Tasks
-    def get_tasks(self, player_id: int) -> List[TaskData]:
-        cached = self._cache.get("tasks", subkey=player_id)
+    def get_tasks(self, color_id: Union[int, ColorId]) -> List[TaskData]:
+        # Normalize ColorId
+        cid = color_id.value if isinstance(color_id, ColorId) else int(color_id)
+        cached = self._cache.get("tasks", subkey=cid)
         if cached is not None:
             return cached
-        tasks = self._tasks.get_tasks(player_id)
-        self._cache.set("tasks", tasks, subkey=player_id)
+        tasks = self._tasks.get_tasks(color_id)
+        self._cache.set("tasks", tasks, subkey=cid)
         return tasks
 
     def get_task_panel(
         self,
-        player_id: Optional[int] = None,
+        color_id: Optional[Union[int, ColorId]] = None,
         *,
         include_completed: bool = False,
     ) -> List[TaskPanelEntry]:
-        if player_id is None:
-            player_id = self.get_local_player_id()
-        if player_id is None:
-            return []
-        tasks = self.get_tasks(player_id)
+        if color_id is None:
+            # Get local player's color_id
+            local_player = self.get_local_player()
+            if local_player is None:
+                return []
+            color_id = local_player.color_id
+        tasks = self.get_tasks(color_id)
         if not tasks:
             return []
         totals = Counter(t.task_type_id for t in tasks)

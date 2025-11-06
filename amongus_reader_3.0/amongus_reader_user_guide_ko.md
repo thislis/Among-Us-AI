@@ -38,23 +38,24 @@ from amongus_reader.service import AmongUsReader
 r = AmongUsReader(process_name="Among Us.exe", debug=False)
 r.attach()
 try:
-    # 로컬 플레이어 ID
-    local_id = r.get_local_player_id()
+    # 로컬 플레이어 정보
+    local_player = r.get_local_player()
+    local_color_id = local_player.color_id if local_player else None
 
-    # 모든 플레이어 좌표(초고속 per-call 경로)
+    # 모든 플레이어 좌표(초고속 per-call 경로, color_id를 키로 사용)
     pos_map = r.positions()
-    my_pos = pos_map.get(local_id) if local_id is not None else None
+    my_pos = pos_map.get(local_color_id) if local_color_id is not None else None
 
-    # 색상 이름 매핑
+    # 색상 이름 매핑 (color_id를 키로 사용)
     colors = r.colors()
 
-    # 태스크 (로컬 플레이어 기준 예시)
-    tasks = r.get_tasks(local_id) if local_id is not None else []
+    # 태스크 (로컬 플레이어 기준 예시, color_id 사용)
+    tasks = r.get_tasks(local_color_id) if local_color_id is not None else []
 
     # HUD Report 버튼 활성 여부(진단 포함)
     active, diag = r.is_report_active()
 
-    print("local_id:", local_id)
+    print("local_color_id:", local_color_id)
     print("my_pos:", my_pos)
     print("colors:", colors)
     print("tasks_count:", len(tasks))
@@ -114,21 +115,21 @@ python Archive/session_debug/detect_session_state.py --verbose
   - `list_players() -> list[PlayerData]`
   - `get_local_player() -> PlayerData | None`
   - `get_local_player_id() -> int | None`
-  - `get_player(player_id: int) -> PlayerData | None`
-  - `find_player_by_color(color_id: int) -> PlayerData | None`
-  - `positions() -> dict[int, tuple[float,float]]`  (초고속 per-call 경로)
-  - `colors() -> dict[int, str]`
+  - `get_player(color_id: int | ColorId) -> PlayerData | None`  (color_id 기반)
+  - `find_player_by_color(color_id: int | ColorId) -> PlayerData | None`
+  - `positions() -> dict[int, tuple[float,float]]`  (초고속 per-call 경로, color_id를 키로 사용)
+  - `colors() -> dict[int, str]`  (color_id를 키로 사용)
   - `count() -> int`
 - 태스크
-  - `get_tasks(player_id: int) -> list[TaskData]`
-  - `get_task_panel(player_id: int | None = None, include_completed: bool = False) -> list[TaskPanelEntry]`
+  - `get_tasks(color_id: int | ColorId) -> list[TaskData]`  (color_id 기반)
+  - `get_task_panel(color_id: int | ColorId | None = None, include_completed: bool = False) -> list[TaskPanelEntry]`  (color_id 기반)
 - HUD/Report
   - `is_report_active() -> tuple[bool | None, dict]`  (진단 포함)
 
 자세한 설명은 `docs/amongus_reader_api_design.md`를 참고하세요.
 
 ## 6. 캐시와 갱신 전략
-- Per-call(즉시): `positions()`는 PlayerControl 포인터 맵(기본 TTL 1.0s)을 활용해 좌표만 빠르게 읽습니다.
+- Per-call(즉시): `positions()`는 PlayerControl 포인터 맵(기본 TTL 1.0s)을 활용해 좌표만 빠르게 읽습니다. color_id를 키로 사용하는 딕셔너리를 반환합니다.
 - Periodic(TTL): `players`, `colors`, `tasks`, `hud`는 타입별 TTL로 갱신됩니다(기본 예: players 0.15s, colors 1.0s, tasks 3.0s, hud 1.5s).
 - 명시적 제어:
 ```python
@@ -161,9 +162,10 @@ r = AmongUsReader()
 r.attach()
 try:
     while True:
-        local_id = r.get_local_player_id()
-        pos = r.positions().get(local_id) if local_id is not None else None
-        print(pos)
+        local_player = r.get_local_player()
+        if local_player:
+            pos = r.positions().get(local_player.color_id)
+            print(pos)
         time.sleep(0.5)
 except KeyboardInterrupt:
     pass
@@ -208,7 +210,8 @@ def detect_map(pos):
 r = AmongUsReader(); r.attach()
 try:
     while True:
-        lid = r.get_local_player_id(); p = r.positions().get(lid) if lid is not None else None
+        local_player = r.get_local_player()
+        p = r.positions().get(local_player.color_id) if local_player else None
         print(detect_map(p))
         time.sleep(0.5)
 except KeyboardInterrupt:
@@ -252,8 +255,8 @@ from amongus_reader.service import AmongUsReader
 r = AmongUsReader(); r.attach()
 try:
     for p in r.list_players():
-        tasks = r.get_tasks(p.player_id)
-        print(p.player_id, [(t.task_id, t.task_type_id, t.is_completed) for t in tasks])
+        tasks = r.get_tasks(p.color_id)
+        print(f"{p.color_name} (color_id: {p.color_id})", [(t.task_id, t.task_type_id, t.is_completed) for t in tasks])
 finally:
     r.detach()
 ```
@@ -274,6 +277,43 @@ finally:
 ```
 `TaskPanelEntry` 객체는 `room`, `task_name`, `completed_steps`, `total_steps`, `task_id`, `task_type_id`, `coordinates` 등의 속성을 제공합니다. `include_completed=True` 로 전달하면 완료된 태스크도 포함할 수 있습니다.
 service/task_lookup.py에서 태스크의 위치와 이름을 변경할 수 있습니다.
+
+### 7.7 다른 플레이어의 사망 여부 모니터링 (color_id 기반)
+`tools/check_player_death.py` 스크립트는 `NetworkedPlayerInfo`의 RoleType 필드를 활용해 각 플레이어의 사망 여부를 안정적으로 판독합니다. 기본 사용법은 아래와 같습니다.
+
+```bash
+# 한 번만 확인
+python tools/check_player_death.py --once
+
+# 특정 color_id만 확인
+python tools/check_player_death.py --once --color-id 0
+
+# 주기적으로 모니터링 (Ctrl+C 로 종료)
+python tools/check_player_death.py
+```
+
+코드에서 직접 사용하려면 `get_player_death_status()`를 임포트하면 됩니다.
+
+```python
+from tools.check_player_death import get_player_death_status
+from amongus_reader.service import AmongUsReader
+
+reader = AmongUsReader(); reader.attach()
+try:
+    target_color = 0  # 예: Red
+    is_dead, diag = get_player_death_status(reader._ds, target_color)
+
+    if is_dead is None:
+        print("읽기 실패", diag.get("error"))
+    elif is_dead:
+        print("플레이어가 사망했습니다")
+    else:
+        print("플레이어가 생존 중입니다")
+finally:
+    reader.detach()
+```
+
+RoleType을 기반으로 판독하기 때문에 임포스터/서포터 등 확장 역할이 있어도 `CrewmateGhost`, `ImpostorGhost`, `GuardianAngel` 로 전환된 순간 사망으로 처리됩니다. 진단 딕셔너리에는 `role_snapshot`, `dead_role_colors`, `impostor_role_colors` 등이 포함되어 있어 디버깅에 활용할 수 있습니다.
 
 ## 8. 문제 해결
 - `attach()` 실패

@@ -23,7 +23,8 @@ def main() -> None:
 
     try:
         while True:
-            local_id = reader.get_local_player_id()
+            local_player = reader.get_local_player()
+            local_id = local_player.color_id if local_player else None
             if local_id is None:
                 print("로컬 플레이어를 찾는 중... (게임 로딩 대기)")
                 time.sleep(0.5)
@@ -31,7 +32,7 @@ def main() -> None:
 
             # always force a fresh read; the first call after 라운드 시작 시 빈 결과가 나올 수 있어 재시도
             reader.invalidate(["tasks"])
-            tasks = reader.get_tasks(local_id)
+            tasks = reader.get_tasks(local_id) if local_id is not None else []
             if not tasks:
                 print("태스크 데이터를 불러오는 중입니다... (다시 시도)")
                 time.sleep(0.5)

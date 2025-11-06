@@ -62,7 +62,8 @@ def _get_map_name(default: str) -> str:
 def _get_player_position() -> Optional[Tuple[float, float]]:
     reader = _get_reader()
     try:
-        local_id = reader.get_local_player_id()
+        local_player = reader.get_local_player()
+        local_id = local_player.color_id if local_player else None
         if local_id is None:
             return None
         pos_map = reader.positions()

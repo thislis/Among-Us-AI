@@ -164,11 +164,11 @@ def _get_player_position() -> Tuple[float, float]:
     """Player coordinates via AmongUsReader facade."""
     reader = _get_reader()
     try:
-        local_id = reader.get_local_player_id()
-        if local_id is None:
+        local_player = reader.get_local_player()
+        if local_player is None:
             return (0.0, 0.0)
         pos_map = reader.positions()
-        pos = pos_map.get(local_id)
+        pos = pos_map.get(local_player.color_id)
         if not pos:
             return (0.0, 0.0)
         return (float(pos[0]), float(pos[1]))

@@ -1,11 +1,11 @@
 import time
+import multiprocessing
 from utility import *
 from math import dist
 import networkx as nx
 from solver import *
 from random import choice
 import keyboard
-import amongus_reader
 
 inspect_sample_flag : bool = False
 
@@ -74,7 +74,8 @@ def idle(G):
         if urgent is not None:
             dict = load_dict()
             destination = tuple(dict[urgent[0]][urgent[1]])
-        move_return_code = move(list(nx.shortest_path(G, nearest, destination, weight="weight")), G)
+        destination_node = get_nearest_node(graph, destination)
+        move_return_code = move(list(nx.shortest_path(G, nearest, destination_node, weight="weight")), G)
         if isImpostor():
             solve_task(get_nearest_task()[0])
             urgent = is_urgent_task()
@@ -91,7 +92,8 @@ def idle(G):
             if urgent is not None and urgent[0] == "Restore Oxygen":
                 if (is_urgent_task() is not None):
                     # TODO: Position is hard coded to skeld for now - fine for polus
-                    move(list(nx.shortest_path(G, nearest, (6.521158, -7.138555), weight="weight")), G)
+                    destination_node = get_nearest_node(graph, (6.521158, -7.138555))
+                    move(list(nx.shortest_path(G, nearest, destination_node, weight="weight")), G)
                     solve_task(task_name="Restore Oxygen", task_location="Admin")
                 nearest = move_to_nearest_node(graph)
         if move_return_code == 1:
@@ -165,7 +167,8 @@ def move_and_complete_tasks(G, move_list, tasks):
 
             if is_urgent_task() is not None:
                 # TODO: Position is hard coded to skeld for now - fine for polus
-                move(list(nx.shortest_path(G, nearest, (6.521158, -7.138555), weight="weight")), G)
+                destination_node = get_nearest_node(graph, (6.521158, -7.138555))
+                move(list(nx.shortest_path(G, nearest, destination_node, weight="weight")), G)
                 return_code = solve_task(task_name="Restore Oxygen", task_location="Admin")
             nearest = move_to_nearest_node(graph)
 
@@ -292,12 +295,21 @@ def main(G) -> int:
     #         return 0
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     try:
+        initialize_controller()
+        
         graph = load_G("SHIP")
         focus()
         main(graph)
+        
+    except KeyboardInterrupt:
+        print("\n프로그램을 중단합니다.")
+    except Exception as e:
+        print(f"오류 발생: {e}")
     finally:
-        amongus_reader.reset_data_service()
+        close_controller()
+        print("프로그램이 종료되었습니다.")
 
     # # Focus app
     # focus()

@@ -27,7 +27,7 @@ DEFAULT_INTERVAL = 0.5
 DEFAULT_RETRIES = 5
 DEFAULT_RETRY_DELAY = 1.0
 
-SnapshotRow = Tuple[Optional[int], Optional[float], Optional[float], str, bool]
+SnapshotRow = Tuple[Optional[int], Optional[int], Optional[float], Optional[float], str, bool]  # (color_id, player_id, x, y, color_name, is_local)
 
 
 def _attempt_attach(
@@ -53,7 +53,7 @@ def _attempt_attach(
 
 
 def _collect_snapshot(reader: AmongUsReader) -> List[SnapshotRow]:
-    """Return a sorted list of (player_id, x, y, color_name, is_local)."""
+    """Return a sorted list of (color_id, player_id, x, y, color_name, is_local)."""
     players: List[PlayerData] = reader.list_players() or []
 
     positions: Dict[int, Tuple[float, float]] = reader.positions() or {}
@@ -66,14 +66,15 @@ def _collect_snapshot(reader: AmongUsReader) -> List[SnapshotRow]:
     seen: set[int] = set()
 
     for pdata in players:
+        color_id: Optional[int] = getattr(pdata, "color_id", None)
         player_id: Optional[int] = getattr(pdata, "player_id", None)
 
         # PlayerData.position is generally reliable and per-player; prefer it over the
         # shared per-call positions() result so we avoid collapsing multiple players
-        # that accidentally share the same player_id mapping.
+        # that accidentally share the same color_id mapping.
         pos: Optional[Tuple[float, float]] = getattr(pdata, "position", None)
-        if pos is None and player_id is not None:
-            pos = positions.get(player_id)
+        if pos is None and color_id is not None:
+            pos = positions.get(color_id)
 
         if pos is None:
             x_val = None
@@ -83,21 +84,21 @@ def _collect_snapshot(reader: AmongUsReader) -> List[SnapshotRow]:
 
         color_name = (
             getattr(pdata, "color_name", None)
-            or (colors.get(player_id) if player_id is not None else None)
+            or (colors.get(color_id) if color_id is not None else None)
             or "Unknown"
         )
         is_local = bool(getattr(pdata, "is_local_player", False))
-        snapshot.append((player_id, x_val, y_val, color_name, is_local))
-        if player_id is not None:
-            seen.add(player_id)
+        snapshot.append((color_id, player_id, x_val, y_val, color_name, is_local))
+        if color_id is not None:
+            seen.add(color_id)
 
     # Include any players visible via positions() but missing from list_players()
-    for player_id, pos in sorted(positions.items()):
-        if player_id in seen:
+    for color_id, pos in sorted(positions.items()):
+        if color_id in seen:
             continue
         x_val, y_val = pos
-        color_name = colors.get(player_id, "Unknown")
-        snapshot.append((player_id, x_val, y_val, color_name, False))
+        color_name = colors.get(color_id, "Unknown")
+        snapshot.append((color_id, None, x_val, y_val, color_name, False))
 
     return snapshot
 
@@ -117,14 +118,15 @@ def _render_snapshot(rows: Iterable[SnapshotRow]) -> None:
         return
 
     print(f"[{timestamp}] 플레이어 위치 ({len(rows)}명)")
-    print("ID | L | Color        |        X |        Y")
-    print("---------------------------------------------")
-    for player_id, x, y, color_name, is_local in rows:
+    print("ColorID | PlayerID | L | Color        |        X |        Y")
+    print("------------------------------------------------------------")
+    for color_id, player_id, x, y, color_name, is_local in rows:
         local_flag = "L" if is_local else " "
         x_str = f"{x:8.3f}" if x is not None else "   --   "
         y_str = f"{y:8.3f}" if y is not None else "   --   "
-        id_str = "??" if player_id is None or player_id < 0 else f"{player_id:2d}"
-        print(f"{id_str:>2} | {local_flag} | {color_name:<12} | {x_str} | {y_str}")
+        color_id_str = "??" if color_id is None or color_id < 0 else f"{color_id:2d}"
+        player_id_str = "??" if player_id is None or player_id < 0 else f"{player_id:2d}"
+        print(f"{color_id_str:>7} | {player_id_str:>8} | {local_flag} | {color_name:<12} | {x_str} | {y_str}")
 
 
 def _parse_args(argv: List[str]) -> argparse.Namespace:

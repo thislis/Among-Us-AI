@@ -18,15 +18,21 @@ TASK_TYPE_NAMES: Dict[int, str] = {
     0x05: "Swipe Card",
     0x06: "Clear Asteroids",
     0x07: "Download Data",
+    0x08: "Inspect Sample",
     0x09: "Empty Chute",
+    0x0A: "Empty Garbage",
     0x0B: "Align Engine Output",
     0x0C: "Fix Wiring",
+    0x0D: "Calibrate Distributor",
     0x0E: "Divert Power",
+    0x0F: "Unlock Manifolds",
+    0x10: "Reset Reactor",
+    0x11: "Fix Lights",
     0x12: "Clean O2 Filter",
     0x14: "Restore Oxygen",
     0x15: "Stabilize Steering",
     0x1C: "Run Diagnostics",
-    0x3C: "Clean Vent"
+    0x3C: "Vent Cleaning"
 }
 
 
