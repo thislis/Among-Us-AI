@@ -117,7 +117,7 @@ def getGameData():
     task_locations = [t.location for t in tasks_info]
     task_steps = [f"{t.step}/{t.max_step}" for t in tasks_info]
     map_id = "SHIP"
-    dead, diag = get_player_death_status(service._ds, player.color_id)
+    dead, diag = False, False # get_player_death_status(service._ds, player.color_id)
     lights = 1
     playersVent = {}
     playersDead = {}

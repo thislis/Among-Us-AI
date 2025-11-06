@@ -336,6 +336,7 @@ def _pipe_process(child_conn: Connection):
         import traceback
         traceback.print_exc()
         print(f"[InfoPipe Process] 오류 발생: {e}")
+        raise e
     finally:
         child_conn.close()
         print("[InfoPipe Process] InfoPipe 프로세스 종료됨.")
@@ -405,6 +406,7 @@ class PipeController:
             print("[PipeController] 파이프가 이미 닫혀있습니다 (EOFError).")
         except Exception as e:
             print(f"[PipeController] 종료 중 오류 발생: {e}")
+            raise e
         finally:
             self.pipe.close()
             self._closed = True

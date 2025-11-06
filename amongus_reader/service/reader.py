@@ -108,6 +108,7 @@ class AmongUsReader:
             return cached
         result = self._ds.get_local_impostor_flag()
         self._cache.set("local_role", result, subkey="impostor")
+        print(f"Local impostor status: {result}")
         return result
 
     # Players
