@@ -37,7 +37,7 @@ def get_dimensions(window_title: str = "Among Us", bring_to_foreground: bool = T
 
 result = None
 
-def is_imposter() -> bool:
+def is_impostor() -> bool:
     """
     Tab을 눌러 지도를 연 뒤 화면에서 빨강/파랑 픽셀 비율을 비교해
     빨강이 더 많으면 임포스터(True), 아니면 False를 반환합니다.
@@ -121,5 +121,5 @@ def is_imposter() -> bool:
                 pass
     
 if __name__ == "__main__":
-    result = is_imposter()
+    result = is_impostor()
     print("임포스터 여부:", result)
