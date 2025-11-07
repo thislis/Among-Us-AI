@@ -5,8 +5,7 @@ import pyautogui
 import networkx as nx
 import re
 import sys, os
-sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/task-solvers")
-from task_utility import get_dimensions, get_screen_coords, wake, get_screen_ratio
+from utils.task_utility import get_dimensions, get_screen_coords, wake, get_screen_ratio
 
 API_KEY = ""
 try:

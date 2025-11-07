@@ -1,6 +1,7 @@
 import time
 import multiprocessing
 from utility import *
+from utils.task_utility import initialize_service, close_service
 from math import dist
 import networkx as nx
 from solver import *
@@ -143,9 +144,10 @@ def move_and_complete_tasks(G, move_list, tasks):
             nearest = move_to_nearest_node(graph)
             continue
         tsk = get_nearest_task(tasks[0])
-
+        print(f"Nearest task: {tsk[0]} at distance {tsk[1]} in {tsk[2]}")
         # Issue is due do tsk being too high here - get_nearest_task
         if tsk[1] > 1.5:
+            print("shit!!! task is too far")
             return -1
 
         # Inspect sample cases
@@ -252,10 +254,11 @@ def move_and_complete_tasks(G, move_list, tasks):
 
 def main(G) -> int:
     print("yeah!!")
-    idle(G)
+    # idle(G)
     
     tasks = get_task_list()
-    move_list = get_move_list(tasks)
+    print(f"tasks: {tasks}")
+    move_list = get_move_list(tasks, G)
     move_and_complete_tasks(G, move_list, tasks)
 
     
@@ -264,7 +267,7 @@ def main(G) -> int:
     # tasks = get_task_list()
 
     # # Initialize places to move to
-    # move_list = get_move_list(tasks)
+    # move_list = get_move_list(tasks, G)
 
     # set_can_vote_false()
 
@@ -298,7 +301,7 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     try:
         initialize_controller()
-        
+        initialize_service()
         graph = load_G("SHIP")
         focus()
         main(graph)
@@ -310,6 +313,7 @@ if __name__ == "__main__":
         raise e
     finally:
         close_controller()
+        close_service()
         print("프로그램이 종료되었습니다.")
 
     # # Focus app

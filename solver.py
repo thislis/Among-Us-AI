@@ -5,16 +5,15 @@ import pyautogui
 import random
 import sys, os
 import keyboard
-sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/task-solvers")
-from task_utility import get_dimensions, get_screen_coords, wake
+from utils.task_utility import get_dimensions, get_screen_coords, wake
 
-
-PYTHON_PATH = r"C:\repositories\ist-tech-proj\task-solver-test\.venv\Scripts\python.exe"
+PYTHON_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), r".venv\Scripts\python.exe")
+SOLVER_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), r"task_solvers")
 
 def generate_files():
     possible_tasks = utility.load_dict().keys()
     for task in possible_tasks:
-        with open(f"task-solvers\{task}.py", "w") as f:
+        with open(os.path.join(SOLVER_PATH, f"{task}.py"), "w") as f:
             f.close()
 
 def chat(can_vote_flag : bool):
@@ -57,11 +56,12 @@ def solve_task(task_name=None, task_location=None) -> int:
         
         -1 if task not found
     """
+    print(f"solving task: {task_name} at {task_location}")
     dead : bool = utility.isDead()
     if task_name == "vote":
         print("Should never be here")
         if not dead:
-            p = subprocess.Popen([PYTHON_PATH, f"task-solvers\\vote.py"])
+            p = subprocess.Popen([PYTHON_PATH, os.path.join(SOLVER_PATH, "vote.py")])
         else:
             return 0
         p.wait()
@@ -78,7 +78,7 @@ def solve_task(task_name=None, task_location=None) -> int:
         if urgent is None:
             # Open solver file
             if random.randint(1,3) % 3 == 0:
-                p = subprocess.Popen([PYTHON_PATH, f"task-solvers\Sabotage.py"])
+                p = subprocess.Popen([PYTHON_PATH, os.path.join(SOLVER_PATH, "Sabotage.py")])
             else:
                 return 0
         else:
@@ -107,7 +107,9 @@ def solve_task(task_name=None, task_location=None) -> int:
         f.close()
 
         # Open solver file
-        p = subprocess.Popen([PYTHON_PATH, f"task-solvers\{task_name}.py"])
+        comm = [PYTHON_PATH, f"{os.path.join(SOLVER_PATH, f'{task_name}.py')}"]
+        print(" ".join(comm))
+        p = subprocess.Popen(comm)
 
         # Wait for process to finish
         while p.poll() is None:

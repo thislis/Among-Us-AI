@@ -13,43 +13,40 @@ import sys
 import os
 import solver
 import keyboard
-sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/task-solvers")
-from report import can_report
-from kill import can_kill
-from task_utility import click_use
+from utils.report import can_report
+from utils.kill import can_kill
+from utils.task_utility import click_use, get_service
 from amongus_reader import AmongUsReader
 from amongus_reader.service.task_lookup import TASK_TYPE_NAMES
 from amongus_reader.tools.check_player_death import get_player_death_status
 from locator import place
 from info_pipe import pipewrapper, PipeController, can_see
+from is_impostor import is_impostor
 
 controller: PipeController = None # controller를 None으로 초기화
-service: AmongUsReader = None
+
+def get_controller() -> PipeController:
+    """컨트롤러에 접근할 때 사용하는 함수."""
+    global controller
+    return controller
 
 def initialize_controller():
     """
     메인 프로그램에서 호출할 컨트롤러 초기화 함수.
     전역 controller 변수를 설정합니다.
     """
-    global controller, service
-    # if controller is None:
-    #     print("[Utility] PipeController를 초기화합니다...")
-    #     controller = PipeController(pipewrapper())
-    if service is None:
-        print("[Utility] AmongUsReader를 초기화합니다...")
-        service = AmongUsReader()
+    global controller
+    if controller is None:
+        print("[Utility] PipeController를 초기화합니다...")
+        controller = PipeController(pipewrapper())
 
 def close_controller():
     """메인 프로그램 종료 시 컨트롤러를 닫는 함수."""
-    global controller, service
-    # if controller:
-    #     print("[Utility] PipeController를 닫습니다...")
-    #     controller.close()
-    #     controller = None
-    if service:
-        print("[Utility] AmongUsReader를 닫습니다...")
-        service.detach()
-        service = None
+    global controller
+    if controller:
+        print("[Utility] PipeController를 닫습니다...")
+        controller.close()
+        controller = None
 
 SHIP_TASK_TYPES = {}
 
@@ -100,8 +97,9 @@ def load_graph_list(map_name) -> list:
         return []
 
 def getGameData():
+    service = get_service()
     player = service.get_local_player()
-    status = "impostor" if service.is_local_impostor() else "crewmate"
+    status = "impostor" if is_impostor() else "crewmate"
     players = service.list_players()
     nearbyPlayers = {}
     for pl in players:
@@ -735,7 +733,7 @@ def get_task_list() -> list:
 
     return [data["tasks"], data["task_locations"], data["task_steps"]]
 
-def get_move_list(tasks) -> list:
+def get_move_list(tasks, G) -> list:
     """Generates a list of destination coordinates"""
     move_list = []
     dict = load_dict()
@@ -743,7 +741,8 @@ def get_move_list(tasks) -> list:
         if True:
         # if not is_task_done(tasks[0][i]):
             try:
-                move_list.append(tuple(dict[tasks[0][i]][tasks[1][i]]))
+                task_pos = get_nearest_node(G, tuple(dict[tasks[0][i]][tasks[1][i]]))
+                move_list.append(task_pos)
             except KeyError:
                 continue
 
@@ -765,6 +764,7 @@ def update_move_list(move_list, old_tasks, tsk):
         return
 
     tasks = get_task_list()
+
     dict = load_dict()
     task = tsk
     urgent_tasks = ["Reset Reactor", "Restore Oxygen"]
@@ -784,7 +784,7 @@ def update_move_list(move_list, old_tasks, tsk):
         progress[0] += 1
 
     # If task is incomplete, 
-    if progress[0] < progress[1]:
+    if not is_task_done(task):
 
         # Get correct index of updated task
         index = tasks[0].index(task)
@@ -970,7 +970,7 @@ def move(dest_list : list, G = None) -> int:
         data = getGameData()
 
         pos = data["position"]
-        print(f"current pos: {pos}")
+        # print(f"current pos: {pos}")
 
         for loc in PB_DOOR_LOCATIONS:
             if (dist(pos, loc) < 1) and not clicked_use:

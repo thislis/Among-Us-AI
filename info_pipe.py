@@ -14,6 +14,8 @@ import json
 from amongus_reader import AmongUsReader
 from amongus_reader.tools.check_player_death import get_player_death_status
 
+from is_impostor import is_impostor
+
 from locator import place
 
 from collections import deque
@@ -63,6 +65,7 @@ class InfoPipe:
             self.history[clr] = [(0, "Cafeteria")] # history table. Everybody starts at Cafeteria
 
         self.dead_players = set()
+        self.is_local_impostor = is_impostor()
         self._is_meeting = False
         self.caught_kill = False
         self.suspicious_player = None
@@ -99,7 +102,7 @@ class InfoPipe:
             if p.is_local_player:
                 if player_init_pipe:
                     key = f"amongus:{clr}:role"
-                    data = "imposter" if self.service.is_local_impostor() else "crewmate"
+                    data = "imposter" if self.is_local_impostor else "crewmate"
                     player_init_pipe.set(key, data)
             
             
@@ -132,7 +135,7 @@ class InfoPipe:
                 # print(f"I'm at {place(x, y)} ({x, y})")
                 continue
             pos = p.position
-            if can_see(p_me, pos, self.service.is_local_impostor()) and self.players_warm[p.color_name]:
+            if can_see(p_me, pos, self.is_local_impostor) and self.players_warm[p.color_name]:
                 seens.append(p)
             else:
                 unseens.append(p)
