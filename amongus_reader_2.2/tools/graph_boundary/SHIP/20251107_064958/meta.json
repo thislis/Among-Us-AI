@@ -1,0 +1,9 @@
+{
+  "map": "SHIP",
+  "interval": 0.03,
+  "node_spacing": 0.12,
+  "connect_threshold": 0.1,
+  "merge_radius": 0.06,
+  "nodes": 2098,
+  "edges": 2120
+}
