@@ -80,6 +80,9 @@ impostor = False
 
 PB_DOOR_LOCATIONS = [(37.641502, -10.066866), (38.974846, -12.105497), (25.77523, -24.922377), (23.96007, -23.106699)]
 
+def L1dist(v1, v2):
+    return sum(abs(a-b) for a, b in zip(v1, v2))
+    
 def write_graph_list(list, map_name):
     """save the current map's graph"""
 
@@ -806,15 +809,17 @@ def update_move_list(move_list, old_tasks, tsk):
     
     return task
 
-def in_meeting() -> bool:
+def is_meeting() -> bool:
+    """화면에 회의 중임을 나타내는 요소가 있는지 확인합니다."""
     dimensions = get_dimensions()
     pos = [(1570, 90), (1600, 100), (1615, 55)]
     colors = [(244, 243, 244), (192, 199, 209), (176, 177, 181)]
+    eps = 5
     for p, c in zip(pos, colors):
         x = dimensions[0] + p[0]
         y = dimensions[1] + p[1]
         pixel_color = pyautogui.pixel(x, y)
-        if pixel_color != c:
+        if L1dist(pixel_color, c) > eps:
             return False
     return True
     # meet = False
@@ -837,7 +842,9 @@ def isDead() -> bool:
     col = pyautogui.pixel(x, y)
     # print(f"Dead pixel color: {col}")
     # print(f"Is dead: {col[0] == 8 and col[1] == 105 and col[2] == 206}")
-    return col[0] == 8 and col[1] == 105 and col[2] == 206
+    ref_col = (8, 105, 206)
+    eps = 5
+    return L1dist(col, ref_col) <= eps
 
 def isInGame() -> bool:
     return True
