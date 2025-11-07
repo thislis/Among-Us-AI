@@ -102,7 +102,7 @@ def chat(can_vote_flag: bool):
         return
 
     print("회의 시간을 대기합니다...")
-    time.sleep(25)
+    time.sleep(50)
 
     print("회의 시작. 투표 신호를 대기합니다...")
     player_color = utility.getGameData()["color"]
