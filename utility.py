@@ -16,37 +16,26 @@ import keyboard
 from utils.report import can_report
 from utils.kill import can_kill
 from utils.task_utility import click_use, get_dimensions, get_service
-from amongus_reader import AmongUsReader
 from amongus_reader.service.task_lookup import TASK_TYPE_NAMES
-from amongus_reader.tools.check_player_death import get_player_death_status
 from locator import place
-from info_pipe import pipewrapper, PipeController, can_see
 from is_impostor import is_impostor
 
-controller: PipeController = None # controller를 None으로 초기화
 
-def get_controller() -> PipeController:
-    """컨트롤러에 접근할 때 사용하는 함수."""
-    global controller
-    return controller
+def can_see(me, opp, is_imposter):
+    x1, y1 = me; x2, y2 = opp
 
-def initialize_controller():
-    """
-    메인 프로그램에서 호출할 컨트롤러 초기화 함수.
-    전역 controller 변수를 설정합니다.
-    """
-    global controller
-    if controller is None:
-        print("[Utility] PipeController를 초기화합니다...")
-        controller = PipeController(pipewrapper())
+    if is_imposter:
+        a, b = 610.1303148042931*(5/3), 610.1303148042931*(5/3)
+    else:
+        a, b = 610.1303148042931, 610.1303148042931
+    real_a = 3.2729492187499996
+    ratio = real_a/a
+    a = real_a
+    b *= ratio
 
-def close_controller():
-    """메인 프로그램 종료 시 컨트롤러를 닫는 함수."""
-    global controller
-    if controller:
-        print("[Utility] PipeController를 닫습니다...")
-        controller.close()
-        controller = None
+    dx, dy = x2-x1, y2-y1
+    val = (dx/a)**2 + (dy/b)**2
+    return val<=1
 
 SHIP_TASK_TYPES = {}
 

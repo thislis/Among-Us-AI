@@ -15,7 +15,7 @@ import json
 from amongus_reader import AmongUsReader
 from amongus_reader.tools.check_player_death import get_player_death_status
 
-from utility import isImpostor, in_meeting
+import utility
 
 from locator import place
 
@@ -65,7 +65,7 @@ class InfoPipe:
             self.history[clr] = [(0, "Cafeteria")] # history table. Everybody starts at Cafeteria
 
         self.dead_players = set()
-        self.is_local_impostor = isImpostor()
+        self.is_local_impostor = utility.isImpostor()
         
         self._is_meeting = False
         
@@ -267,7 +267,7 @@ class InfoPipe:
             print(f"[InfoPipe] !!! {color_name} 사망 기록 중 Redis 오류: {e}")
     
     def is_meeting(self) -> bool:
-        return in_meeting()
+        return utility.in_meeting()
     
     def get_vote_info_from_redis(self, player_color: str) -> Optional[str]:
         """
@@ -341,9 +341,9 @@ def _pipe_process(child_conn: Connection):
                     is_meeting = pipe.is_meeting()
                     child_conn.send(is_meeting)
                 
-                elif command == "vote_done":
-                    pipe.vote_done()
-                    child_conn.send(True)
+                # elif command == "vote_done":
+                #     pipe.vote_done()
+                #     child_conn.send(True)
 
                 elif command == "set_freq":
                     update_freq = args[0]
@@ -459,12 +459,12 @@ class PipeController:
         self.pipe.send(("is_meeting",))
         return self.pipe.recv()
     
-    def vote_done(self) -> bool:
-        """InfoPipe에 투표 완료 신호를 알립니다."""
-        if self._closed:
-            raise RuntimeError("Pipe is already closed")
-        self.pipe.send(("vote_done",))
-        return self.pipe.recv()
+    # def vote_done(self) -> bool:
+    #     """InfoPipe에 투표 완료 신호를 알립니다."""
+    #     if self._closed:
+    #         raise RuntimeError("Pipe is already closed")
+    #     self.pipe.send(("vote_done",))
+    #     return self.pipe.recv()
 
     def __enter__(self):
         """'with' 구문 진입 시 자신을 반환합니다."""
@@ -485,6 +485,31 @@ class PipeController:
             self.close()
 
 
+controller: PipeController = None # controller를 None으로 초기화
+
+def get_controller() -> PipeController:
+    """컨트롤러에 접근할 때 사용하는 함수."""
+    global controller
+    return controller
+
+def initialize_controller():
+    """
+    메인 프로그램에서 호출할 컨트롤러 초기화 함수.
+    전역 controller 변수를 설정합니다.
+    """
+    global controller
+    if controller is None:
+        print("[Utility] PipeController를 초기화합니다...")
+        controller = PipeController(pipewrapper())
+
+def close_controller():
+    """메인 프로그램 종료 시 컨트롤러를 닫는 함수."""
+    global controller
+    if controller:
+        print("[Utility] PipeController를 닫습니다...")
+        controller.close()
+        controller = None
+
 # -------------------- (pipewrapper는 그대로 둡니다) --------------------
 def pipewrapper() -> Connection:
     """
@@ -495,7 +520,6 @@ def pipewrapper() -> Connection:
     p = mp.Process(target=_pipe_process, args=(child_conn,))
     p.start()
     return parent_conn
-
 
 # -------------------- 사용 예 (수정됨) --------------------
 if __name__ == "__main__":

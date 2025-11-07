@@ -1,12 +1,13 @@
 import time
 import multiprocessing
 from utility import *
-from utils.task_utility import initialize_service, close_service
-from math import dist
+# from utils.task_utility import initialize_service, close_service
+# from math import dist
 import networkx as nx
 from solver import *
 from random import choice
 import keyboard
+from info_pipe import initialize_controller, close_controller
 
 inspect_sample_flag : bool = False
 
@@ -246,16 +247,16 @@ def move_and_complete_tasks(G, move_list, tasks):
         # Add next task step to move list, if any
         time.sleep(1/60)
         try:
-            print("current position:")
-            print(data["position"])
-            print("before update_move_list:")
-            print(move_list)
+            # print("current position:")
+            # print(data["position"])
+            # print("before update_move_list:")
+            # print(move_list)
             update_move_list(move_list, tasks, tsk[0])
-            print("after update_move_list:")
-            print(move_list)
+            # print("after update_move_list:")
+            # print(move_list)
             index = tasks[0].index(tsk[0])
-            print(f"{tasks[0]=}, {tsk[0]=}")
-            print("index found:", index)
+            # print(f"{tasks[0]=}, {tsk[0]=}")
+            # print("index found:", index)
             
         except ValueError:
             print("conti val error")
@@ -339,7 +340,7 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     try:
         initialize_controller()
-        initialize_service()
+        # initialize_service()
         graph = load_graph_list("SHIP")
         G = load_G("SHIP")
         focus()
@@ -359,7 +360,7 @@ if __name__ == "__main__":
         raise e
     finally:
         close_controller()
-        close_service()
+        # close_service()
         print("프로그램이 종료되었습니다.")
     
     # # Focus app

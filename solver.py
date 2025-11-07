@@ -1,3 +1,4 @@
+import info_pipe
 import utility
 import subprocess
 import time
@@ -68,25 +69,19 @@ def chat(can_vote_flag : bool):
         time.sleep(10)
         return
     
-    # chatGPT.py를 호출하는 대신, 무작위 시간 대기 후 스킵 투표를 실행합니다.
-    print("회의 시작. 무작위 시간 대기 후 투표합니다...")
-    
-    # 5초에서 15초 사이의 무작위 시간 동안 대기
-    wait_time = random.uniform(15.0, 20.0)
-    print(f"{wait_time:.2f}초 후 투표합니다.")
-    
-    start_time = time.time()
-    while time.time() - start_time < wait_time:
-        # 대기 중에도 회의가 끝나거나, 사용자가 중단하면 즉시 빠져나옴
-        if not utility.in_meeting() or keyboard.is_pressed('`'):
-            print(utility.in_meeting(), keyboard.is_pressed('`'))
-            print("대기 중 회의가 종료되었거나 사용자가 중단했습니다.")
-            return
-        time.sleep(0.1)
+    print("회의 시작. 투표 신호를 대기합니다...")
+    player_color = utility.getGameData()["color"]
+    controller = info_pipe.get_controller()
+    vote_color = controller.get_vote_info(player_color)
+    while vote_color is None:
+        if keyboard.is_pressed('`'):
+            raise SystemExit(0)
+        time.sleep(1/60)
+        vote_color = controller.get_vote_info(player_color)    
 
     # 스킵 투표 스크립트 실행
-    print("투표 시간이 되어 스킵 투표를 실행합니다.")
-    vote("SKIP")
+    print("투표 신호를 받아 투표를 실행합니다...", vote_color)
+    vote(vote_color)
 
     while utility.in_meeting():
         if keyboard.is_pressed('`'):

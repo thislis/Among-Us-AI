@@ -23,22 +23,22 @@ from is_impostor import is_impostor
 ctypes.windll.user32.SetProcessDPIAware()
 
 service = AmongUsReader()
-# service: AmongUsReader = None
+# # service: AmongUsReader = None
 
-def initialize_service():
-    pass
-    # global service
-    # if service is None:
-    #     print("[Utility] AmongUsReader를 초기화합니다...")
-    #     service = AmongUsReader()
+# def initialize_service():
+#     pass
+#     # global service
+#     # if service is None:
+#     #     print("[Utility] AmongUsReader를 초기화합니다...")
+#     #     service = AmongUsReader()
 
-def close_service():
-    pass
-    # global service
-    # if service:
-    #     print("[Utility] AmongUsReader를 닫습니다...")
-    #     service.detach()
-    #     service = None
+# def close_service():
+#     pass
+#     # global service
+#     # if service:
+#     #     print("[Utility] AmongUsReader를 닫습니다...")
+#     #     service.detach()
+#     #     service = None
 
 def get_service() -> AmongUsReader:
     """AmongUsReader 서비스에 접근할 때 사용하는 함수."""
