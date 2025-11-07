@@ -201,9 +201,15 @@ class InfoPipe:
         # 1. 현재 미팅 상태 계산
         is_currently_meeting = True
         for clr, dq in self.players_pos.items():
+            x, y = dq[-1][0]
+            if place(x, y) != "Cafeteria":
+                is_currently_meeting == False
+                break
+                
             if not dq: # 큐가 비어있으면 체크 불가
                 is_currently_meeting = False
                 break
+            
             t_check = dq[-1][1] > self.round_offset + 10 # 최소 10초 경과
             s = set([x[0] for x in dq]) # 모든 플레이어 위치가 같은지
             if not (len(s) == 1 and t_check):
@@ -392,7 +398,7 @@ class PipeController:
         if self._closed:
             raise RuntimeError("Pipe is already closed")
         self.pipe.send(("get_dead_players"))
-        return self.pipe.recv()
+        return self.pipe.recv()        
 
     def close(self):
         """InfoPipe 프로세스에 종료 명령을 보내고 파이프를 닫습니다."""
