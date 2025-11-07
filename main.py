@@ -66,6 +66,7 @@ def idle(G):
         nearest = move_to_nearest_node(graph)
         destination = choice(move_list)
         urgent = is_urgent_task()
+        
         data = getGameData()
         if "Fix Lights" in data["tasks"] and urgent is None and not isImpostor():
             dict = load_dict()
@@ -101,7 +102,7 @@ def idle(G):
             chat(can_vote_flag)
             set_can_vote_false()
             can_vote_flag = False
-            time.sleep(5)
+            time.sleep(0.5)
             nearest = move_to_nearest_node(graph)
             continue
 
@@ -134,14 +135,20 @@ def move_and_complete_tasks(G, move_list, tasks):
 
         # If we are in a meeting,
         if move_return_code == 1:
+            print("move returned with meeting")
             # chat
             chat(can_vote_flag)
+            print("chat returened")
             set_can_vote_false()
+            print("set-can_vote_false returned")
             can_vote_flag = False
+            print("can_vote_flag set to false")
             time.sleep(5)
+            print("slept 5 sec")
 
             # Move to nearest graph node and continue
             nearest = move_to_nearest_node(graph)
+            print("shit???")
             continue
         tsk = get_nearest_task(tasks[0])
         print(f"Nearest task: {tsk[0]} at distance {tsk[1]} in {tsk[2]}")
@@ -165,6 +172,7 @@ def move_and_complete_tasks(G, move_list, tasks):
 
         # Restore Oxygen case
         if tsk[0] == "Restore Oxygen" and return_code == 0 and not isDead():
+            print("conti oxygen")
             nearest = move_to_nearest_node(graph)
 
             if is_urgent_task() is not None:
@@ -183,6 +191,7 @@ def move_and_complete_tasks(G, move_list, tasks):
 
         # Reset Reactor case
         if tsk[0] == "Reset Reactor" and return_code == 0 and not isDead():
+            print("conti reactor")
             nearest = move_to_nearest_node(graph)
 
             # Sort move list by distance
@@ -229,6 +238,7 @@ def move_and_complete_tasks(G, move_list, tasks):
             update_move_list(move_list, tasks, tsk[0])
             index = tasks[0].index(tsk[0])
         except ValueError:
+            print("conti val error")
             move_list.pop(0) # edit here
             nearest = move_to_nearest_node(graph)
 
@@ -248,7 +258,8 @@ def move_and_complete_tasks(G, move_list, tasks):
         for i in range(len(tasks)):
             try:
                 tasks[i].pop(index) 
-            except IndexError:
+            except IndexError:            
+                print("conti idx error")
                 continue
     return 0
 
@@ -260,7 +271,9 @@ def main(G) -> int:
     print(f"tasks: {tasks}")
     move_list = get_move_list(tasks, G)
     move_and_complete_tasks(G, move_list, tasks)
-
+    print("###################################")
+    print("move_and_complete_tasks ended")
+    print("###################################")
     
 
     # # Get tasks

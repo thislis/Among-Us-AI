@@ -176,9 +176,10 @@ def get_chat_messages() -> list:
         return [x.rstrip() for x in lines]
 
 def get_kill_list() -> list[list[str]]:
-    with open(KILL_DATA_PATH) as f:
-        lines = f.readlines()
-        return [[translatePlayerColorID(int(x.rstrip().split(", ")[0])), translatePlayerColorID(int(x.rstrip().split(", ")[1]))] for x in lines]
+    return []
+    # with open(KILL_DATA_PATH) as f:
+    #     lines = f.readlines()
+    #     return [[translatePlayerColorID(int(x.rstrip().split(", ")[0])), translatePlayerColorID(int(x.rstrip().split(", ")[1]))] for x in lines]
     
 def get_killCD() -> float:
     impData = getImposterData()
@@ -436,8 +437,9 @@ def is_KillTimer_0() -> bool:
 
 # depreciated
 def set_can_vote_false() -> None:
-    with open(CAN_VOTE_PATH, "w") as f:
-        f.write("0")
+    return
+    # with open(CAN_VOTE_PATH, "w") as f:
+    #     f.write("0")
 
 def get_task_position(data, i):
     """
@@ -800,10 +802,12 @@ def update_move_list(move_list, old_tasks, tsk):
 
 def in_meeting() -> bool:
     meet = False
-    # if not controller:
-    #     meet = False
-    # else:
-    #     meet = controller.is_meeting()
+    if not controller:
+        meet = False
+        # print("controller is None")
+    else:
+        meet = controller.is_meeting()
+        # print(f"got {meet} from controller")
     return meet
 
 def isImpostor() -> bool:
@@ -867,10 +871,12 @@ def allTasksDone() -> bool:
     return True
 
 def clear_chat():
-    open(CHAT_DATA_PATH, "w").close()
+    return
+    # open(CHAT_DATA_PATH, "w").close()
 
 def clear_kill_data():
-    open(KILL_DATA_PATH, "w").close()
+    return
+    # open(KILL_DATA_PATH, "w").close()
     
 def focus():
     """Focuses the among us window"""

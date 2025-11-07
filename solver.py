@@ -10,6 +10,47 @@ from utils.task_utility import get_dimensions, get_screen_coords, wake
 PYTHON_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), r".venv\Scripts\python.exe")
 SOLVER_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), r"task_solvers")
 
+cols_dict = {"RED" : (208, 68, 74), "BLUE" : (62, 91, 234), "GREEN" : (55, 156, 95), "PINK" : (241, 123, 217), 
+             "ORANGE" : (241, 156, 70), "YELLOW" : (241, 246, 130), "BLACK" : (97, 111, 122), "WHITE" : (223, 240, 251),
+             "PURPLE" : (134, 91, 214), "BROWN" : (138, 110, 83), "CYAN" : (95, 245, 245), "LIME" : (108, 244, 107),
+             "MAROON" : (121, 75, 95), "ROSE" : (241, 213, 236), "BANANA" : (239, 244, 199), "GRAY" : (142, 162, 181),
+             "TAN" : (162, 163, 156), "CORAL" : (226, 136, 144), "GREY" : (142, 162, 181), "SKIP" : ()}
+
+def col_diff(col1 : tuple, col2 : tuple) -> int:
+    return abs(col1[0] - col2[0]) + abs(col1[1] - col2[1]) + abs(col1[2] - col2[2])
+
+def find_col_pos(dimensions, col : str):
+    x = dimensions[0] + round(dimensions[2] / 7.38)
+    y = dimensions[1] + round(dimensions[3] / 4.30)
+
+    x_offset = round(dimensions[2] / 3.68)
+    y_offset = round(dimensions[3] / 7.88)
+
+    for i in range(3):
+        for j in range(5):
+            pixel = pyautogui.pixel(x + x_offset * i, y + y_offset * j)
+            if col != "SKIP" and col_diff(cols_dict[col], pixel) < 30:
+                return (x + x_offset * i, y + y_offset * j)
+    return None
+
+def vote(color : str = "SKIP"):
+    dimensions = get_dimensions()
+    x = dimensions[0] + round(dimensions[2] / 1.12)
+    y = dimensions[1] + round(dimensions[3] / 19.6)
+    wake()
+    time.sleep(0.1)
+
+    pos = find_col_pos(dimensions, color)
+    if pos is None:
+        # skip
+        time.sleep(0.3)
+        pyautogui.click(dimensions[0] + round(dimensions[2] / 6.74), dimensions[1] + round(dimensions[3] / 1.15), duration=0.2)
+        time.sleep(0.3)
+        pyautogui.click(dimensions[0] + round(dimensions[2] / 3.87), dimensions[1] + round(dimensions[3] / 1.17), duration=0.2)
+    else:
+        pyautogui.click(pos, duration=0.2)
+        pyautogui.click(pos[0] + round(dimensions[2] / 8.07), pos[1], duration=0.2)
+
 def generate_files():
     possible_tasks = utility.load_dict().keys()
     for task in possible_tasks:
@@ -18,6 +59,7 @@ def generate_files():
 
 def chat(can_vote_flag : bool):
     if utility.isDead():
+        print("chat dead cycle")
         while utility.in_meeting():
             if keyboard.is_pressed('`'):
                 raise SystemExit(0)
@@ -25,19 +67,29 @@ def chat(can_vote_flag : bool):
             continue
         time.sleep(10)
         return
-    p = subprocess.Popen([PYTHON_PATH, f"chatGPT.py"])
-    while p.poll() is None:
-        if keyboard.is_pressed('`'):
-            p.kill()
-            utility.clear_kill_data()
+    
+    # chatGPT.py를 호출하는 대신, 무작위 시간 대기 후 스킵 투표를 실행합니다.
+    print("회의 시작. 무작위 시간 대기 후 투표합니다...")
+    
+    # 5초에서 15초 사이의 무작위 시간 동안 대기
+    wait_time = random.uniform(15.0, 20.0)
+    print(f"{wait_time:.2f}초 후 투표합니다.")
+    
+    start_time = time.time()
+    while time.time() - start_time < wait_time:
+        # 대기 중에도 회의가 끝나거나, 사용자가 중단하면 즉시 빠져나옴
+        if not utility.in_meeting() or keyboard.is_pressed('`'):
+            print(utility.in_meeting(), keyboard.is_pressed('`'))
+            print("대기 중 회의가 종료되었거나 사용자가 중단했습니다.")
             return
-    p.wait()
-    while utility.in_meeting():
-        if keyboard.is_pressed('`'):
-            raise SystemExit(0)
-        time.sleep(1/60)
-    p.kill()
-    utility.clear_kill_data()
+        time.sleep(0.1)
+
+    # 스킵 투표 스크립트 실행
+    print("투표 시간이 되어 스킵 투표를 실행합니다.")
+    vote("SKIP")
+
+    # vote done 기록
+    utility.controller.vote_done()
 
 def solve_task(task_name=None, task_location=None) -> int:
     """ 
