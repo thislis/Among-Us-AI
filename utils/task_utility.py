@@ -191,9 +191,18 @@ def is_task_done(task):
         print(e)
         return False
 
+def isDead() -> bool:
+    dimensions = get_dimensions()
+    x = dimensions[0] + round(dimensions[2] / 1.19)
+    y = dimensions[1] + round(dimensions[3] / 1.17)
+    col = pyautogui.pixel(x, y)
+    # print(f"Dead pixel color: {col}")
+    # print(f"Is dead: {col[0] == 8 and col[1] == 105 and col[2] == 206}")
+    return col[0] == 8 and col[1] == 105 and col[2] == 206
+
 def is_urgent_task() -> bool:
     data = getGameData()
-    if data["dead"]:
+    if isDead():
         return False
 
     urgent_tasks = ["Reset Reactor", "Restore Oxygen", "Reset Seismic Stabilizers"]

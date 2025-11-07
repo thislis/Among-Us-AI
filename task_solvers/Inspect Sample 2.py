@@ -23,7 +23,7 @@ dimensions[3] = round(dimensions[3] / 3.6)
 pos = None
 while pos is None:
     try:
-        pos = pyautogui.locateCenterOnScreen(f"{get_dir()}\\task_solvers\\cv2-templates\\Inspect Sample resized\\anomaly.png", confidence=0.5, region=dimensions)4
+        pos = pyautogui.locateCenterOnScreen(f"{get_dir()}\\task_solvers\\cv2-templates\\Inspect Sample resized\\anomaly.png", confidence=0.5, region=dimensions)
         print("yeah!! pos found:", pos)
     except:
         print("waiting...")

@@ -15,7 +15,7 @@ import solver
 import keyboard
 from utils.report import can_report
 from utils.kill import can_kill
-from utils.task_utility import click_use, get_service
+from utils.task_utility import click_use, get_dimensions, get_service
 from amongus_reader import AmongUsReader
 from amongus_reader.service.task_lookup import TASK_TYPE_NAMES
 from amongus_reader.tools.check_player_death import get_player_death_status
@@ -114,9 +114,10 @@ def getGameData():
     tasks = [TASK_TYPE_NAMES[t.task_type_id] for t in tasks_info]
     task_locations = [t.location for t in tasks_info]
     task_steps = [f"{t.step}/{t.max_step}" for t in tasks_info]
+    task_completed = [t.is_completed for t in tasks_info]
     map_id = "SHIP"
     dead, diag = False, False # get_player_death_status(service._ds, player.color_id)
-    lights = 1
+    lights = 1 if "Fix Lights" in tasks else 0
     playersVent = {}
     playersDead = {}
     
@@ -126,9 +127,8 @@ def getGameData():
         "tasks": tasks,
         "task_locations": task_locations,
         "task_steps": task_steps,
+        "task_completed": task_completed,
         "map_id": map_id,
-        "dead": dead,
-        "inMeeting": False,
         "speed": 2.0,
         "color": player.color_name.upper(),
         "room": place(*my_pos),
@@ -339,8 +339,9 @@ def is_task_done(task) -> bool:
             return True
 
         index = data["tasks"].index(task)
-        steps = data["task_steps"][index].split('/')
-        return steps[0] == steps[1]
+        return data["task_completed"][index]
+        # steps = data["task_steps"][index].split('/')
+        # return steps[0] == steps[1]
     except (IndexError, ValueError):
         return False
     
@@ -632,11 +633,11 @@ def get_nearest_node(G : nx.Graph, node_pos : tuple):
     """Returns the nearest node on the graph to a given x,y position"""
     smallest_dist = 100
     nearest = ()
-    for item in G.nodes.items():
-        distance = dist(item[0], node_pos)
+    for node in G:
+        distance = dist(node, node_pos)
         if distance < smallest_dist:
             smallest_dist = distance
-            nearest = item[0]
+            nearest = node
     return nearest
 
 def get_real_dist(G : nx.Graph, node_pos : tuple) -> tuple:
@@ -780,14 +781,19 @@ def update_move_list(move_list, old_tasks, tsk):
 
     # Get progress of current task
     progress = tasks[2][tasks[0].index(task)].split("/")
+    print("progress 1:", progress)
     progress = [int(i) for i in progress]
+    print("progress 2:", progress)
 
     if tsk == "Divert Power" and old_tasks[1][old_tasks[0].index(tsk)] != "Electrical":
         progress[0] += 1
 
+    print(f"is_task_done({task}):", is_task_done(task))
+    EXCEPTIONAL = ["Unlock Manifolds"]
+    # EXCEPTIONAL = []
     # If task is incomplete, 
-    if not is_task_done(task):
-
+    if not is_task_done(task) and task not in EXCEPTIONAL:
+        print("task incomplete")
         # Get correct index of updated task
         index = tasks[0].index(task)
 
@@ -801,22 +807,37 @@ def update_move_list(move_list, old_tasks, tsk):
     return task
 
 def in_meeting() -> bool:
-    meet = False
-    if not controller:
-        meet = False
-        # print("controller is None")
-    else:
-        meet = controller.is_meeting()
-        # print(f"got {meet} from controller")
-    return meet
+    dimensions = get_dimensions()
+    pos = [(1570, 90), (1600, 100), (1615, 55)]
+    colors = [(244, 243, 244), (192, 199, 209), (176, 177, 181)]
+    for p, c in zip(pos, colors):
+        x = dimensions[0] + p[0]
+        y = dimensions[1] + p[1]
+        pixel_color = pyautogui.pixel(x, y)
+        if pixel_color != c:
+            return False
+    return True
+    # meet = False
+    # if not controller:
+    #     meet = False
+    #     # print("controller is None")
+    # else:
+    #     meet = controller.is_meeting()
+    #     # print(f"got {meet} from controller")
+    # return meet
 
 def isImpostor() -> bool:
     data = getGameData()
     return data["status"] == "impostor"
 
 def isDead() -> bool:
-    data = getGameData()
-    return data['dead']
+    dimensions = get_dimensions()
+    x = dimensions[0] + round(dimensions[2] / 1.19)
+    y = dimensions[1] + round(dimensions[3] / 1.17)
+    col = pyautogui.pixel(x, y)
+    # print(f"Dead pixel color: {col}")
+    # print(f"Is dead: {col[0] == 8 and col[1] == 105 and col[2] == 206}")
+    return col[0] == 8 and col[1] == 105 and col[2] == 206
 
 def isInGame() -> bool:
     return True
@@ -826,12 +847,14 @@ def isInGame() -> bool:
     return inGame
 
 def should_I_kill():
-    return True
+    # return True
     """Determines if we should kill"""
     data = getGameData()
 
     G = load_G(data["map_id"])
-    
+
+    print("Should I kill?")
+
     num_nearby_players = len(get_imposter_nearby_players(G))
     num_nearby_imposters = len(get_nearby_imposter_players(G))
     lights = data["lights"]
@@ -844,9 +867,10 @@ def should_I_kill():
     if num_players_alive - 1 == num_imposters_alive:
         return True
 
-    # If on cameras dont
-    if cams:
-        return False
+    # # If on cameras dont
+    # if cams:
+    #     print("Shit! cam")
+    #     return False
     
     # If lights are on, always kill when appropriate
     if lights:
@@ -864,11 +888,7 @@ def should_I_kill():
 
 def allTasksDone() -> bool:
     data = getGameData()
-    tasks = data["tasks"]
-    for task in tasks:
-        if not is_task_done(task):
-            return False
-    return True
+    return all(data["task_completed"])
 
 def clear_chat():
     return
