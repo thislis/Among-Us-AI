@@ -23,8 +23,12 @@ dimensions[3] = round(dimensions[3] / 3.6)
 pos = None
 while pos is None:
     try:
-        pos = pyautogui.locateCenterOnScreen(f"{get_dir()}\\task_solvers\\cv2-templates\\Inspect Sample resized\\anomaly.png", confidence=0.5, region=dimensions)
+        pos = pyautogui.locateCenterOnScreen(f"{get_dir()}\\task_solvers\\cv2-templates\\Inspect Sample resized\\anomaly.png", confidence=0.5, region=dimensions)4
+        print("yeah!! pos found:", pos)
     except:
+        print("waiting...")
         time.sleep(5)
 pyautogui.click(pos[0], pos[1] + round(y_offset / 2.87))
+print("clicked anomaly")
 time.sleep(1.0)
+print("shit?")

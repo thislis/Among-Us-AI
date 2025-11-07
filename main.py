@@ -169,6 +169,10 @@ def move_and_complete_tasks(G, move_list, tasks):
         # If task not found, exit
         if return_code == -1:
             break
+        
+        data = getGameData()
+        print("remained tasks after solving:")
+        print(data["tasks"])
 
         # Restore Oxygen case
         if tsk[0] == "Restore Oxygen" and return_code == 0 and not isDead():
@@ -252,7 +256,11 @@ def move_and_complete_tasks(G, move_list, tasks):
         move_list = sort_shortest_path(G, nearest, move_list, tasks)
 
         # remove task we just did
-        move_list.pop(0)
+        print("move list before pop:")
+        print(move_list)
+        move_list.pop(0) # [SHIT] 왜 여기서 안빠져
+        print("move list after pop:")
+        print(move_list)
 
         # Remove completed task from tasks and move list
         for i in range(len(tasks)):
