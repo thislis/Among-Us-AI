@@ -800,18 +800,18 @@ def update_move_list(move_list, old_tasks, tsk):
 
 def in_meeting() -> bool:
     """화면에 회의 중임을 나타내는 요소가 있는지 확인합니다."""
-    if isDead():
-        return False
     dimensions = get_dimensions()
-    pos = [(1570, 90), (1600, 100), (1615, 55)]
-    colors = [(244, 243, 244), (192, 199, 209), (176, 177, 181)]
-    eps = 5
+    pos = [(1570, 90), (1600, 100), (1615, 55), (1815, 90)]
+    colors = [(244, 243, 244), (192, 199, 209), (176, 177, 181), (244, 243, 244)]
+    eps = 10
     for p, c in zip(pos, colors):
         x = dimensions[0] + p[0]
         y = dimensions[1] + p[1]
         pixel_color = pyautogui.pixel(x, y)
         if L1dist(pixel_color, c) > eps:
             return False
+    if isDead():
+        return False
     return True 
     # meet = False
     # if not controller:
@@ -838,7 +838,7 @@ def isDead() -> bool:
     # print(f"Dead pixel color: {col}")
     # print(f"Is dead: {col[0] == 8 and col[1] == 105 and col[2] == 206}")
     ref_col = (8, 105, 206)
-    eps = 5
+    eps = 10
     dead = L1dist(col, ref_col) <= eps
     if dead:
         isDead.history = True

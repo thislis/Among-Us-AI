@@ -13,6 +13,8 @@ def is_meeting() -> bool:
         pixel_color = pyautogui.pixel(x, y)
         if pixel_color != c:
             return False
+        
+        
     return True
 
 if __name__ == "__main__":

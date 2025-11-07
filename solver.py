@@ -73,7 +73,8 @@ def chat(can_vote_flag : bool):
     player_color = utility.getGameData()["color"]
     controller = info_pipe.get_controller()
     vote_color = controller.get_vote_info(player_color)
-    while vote_color is None:
+    print(f"초기 투표 신호: {vote_color}")
+    while vote_color is None and utility.in_meeting():
         if keyboard.is_pressed('`'):
             raise SystemExit(0)
         time.sleep(1/60)
