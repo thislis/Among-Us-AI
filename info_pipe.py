@@ -108,7 +108,7 @@ class InfoPipe:
                 player_init_pipe.set(key, data)
                 key = f"amongus:{clr.upper()}:vote"
                 data = None
-                player_init_pipe.set(key, json.dumps(data))
+                player_init_pipe.set(key, data)
 
             self.history[clr] = [(0, "Cafeteria")]
 
@@ -255,13 +255,15 @@ class InfoPipe:
             new_pos = self.service.get_local_player().position
             if old_pos[0] == new_pos[0] or old_pos[1] == new_pos[1]:
                 is_currently_meeting = True
-                print("[InfoPipe] ⭐️ 미팅 종료 감지 오탐! 위치 변화가 없으므로 복구합니다.")
+                print(
+                    "[InfoPipe] ⭐️ 미팅 종료 감지 오탐! 위치 변화가 없으므로 복구합니다."
+                )
             else:
                 for p in self.service.list_players():
                     key = f"amongus:{p.color_name.upper()}:vote"
                     data = None
                     pipe = self.redis.pipeline()
-                    pipe.set(key, json.dumps(data))
+                    pipe.set(key, data)
                 self.caught_kill = False
                 self.round_offset = time.time()
                 for player in self.service.list_players():
@@ -326,7 +328,7 @@ class InfoPipe:
 
         key = _make_key(player_color)
         try:
-            ret: Optional[str] = json.loads(self.redis.get(key))
+            ret: Optional[str] = self.redis.get(key)
             if ret:
                 self.redis.delete(key)
                 return ret.upper()
