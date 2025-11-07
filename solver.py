@@ -106,7 +106,7 @@ def chat(can_vote_flag: bool):
     controller = info_pipe.get_controller()
     vote_color = controller.get_vote_info(player_color)
     print(f"초기 투표 신호: {vote_color}")
-    while (vote_color == "None" or vote_color == "NONE") and utility.in_meeting():
+    while vote_color not in cols_dict.keys() and utility.in_meeting():
         if keyboard.is_pressed("`"):
             raise SystemExit(0)
         time.sleep(1 / 60)
