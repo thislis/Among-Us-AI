@@ -11,6 +11,7 @@ from multiprocessing.connection import Connection
 import redis
 import pyautogui
 import json
+import random
 
 from amongus_reader import AmongUsReader
 from amongus_reader.tools.check_player_death import get_player_death_status
@@ -232,10 +233,10 @@ class InfoPipe:
         if is_currently_meeting and not self._is_meeting:
             player = self.service.get_local_player()
             old_pos = player.position
-            keys = list("wasd").shuffle()
-            pyautogui.keyDown(keys[0])
+            key = random.choice(list("wasd"))
+            pyautogui.keyDown(key)
             time.sleep(0.05)
-            pyautogui.keyUp(keys[0])
+            pyautogui.keyUp(key)
             new_pos = self.service.get_local_player().position
             if old_pos[0] != new_pos[0] or old_pos[1] != new_pos[1]:
                 is_currently_meeting = False
@@ -247,10 +248,10 @@ class InfoPipe:
         elif not is_currently_meeting and self._is_meeting:
             player = self.service.get_local_player()
             old_pos = player.position
-            keys = list("wasd").shuffle()
-            pyautogui.keyDown(keys[0])
+            key = random.choice(list("wasd"))
+            pyautogui.keyDown(key)
             time.sleep(0.05)
-            pyautogui.keyUp(keys[0])
+            pyautogui.keyUp(key)
             new_pos = self.service.get_local_player().position
             if old_pos[0] == new_pos[0] or old_pos[1] == new_pos[1]:
                 is_currently_meeting = True
