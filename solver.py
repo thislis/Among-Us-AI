@@ -8,19 +8,40 @@ import sys, os
 import keyboard
 from utils.task_utility import get_dimensions, get_screen_coords, wake
 
-PYTHON_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), r".venv\Scripts\python.exe")
+PYTHON_PATH = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), r".venv\Scripts\python.exe"
+)
 SOLVER_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), r"task_solvers")
 
-cols_dict = {"RED" : (208, 68, 74), "BLUE" : (62, 91, 234), "GREEN" : (55, 156, 95), "PINK" : (241, 123, 217), 
-             "ORANGE" : (241, 156, 70), "YELLOW" : (241, 246, 130), "BLACK" : (97, 111, 122), "WHITE" : (223, 240, 251),
-             "PURPLE" : (134, 91, 214), "BROWN" : (138, 110, 83), "CYAN" : (95, 245, 245), "LIME" : (108, 244, 107),
-             "MAROON" : (121, 75, 95), "ROSE" : (241, 213, 236), "BANANA" : (239, 244, 199), "GRAY" : (142, 162, 181),
-             "TAN" : (162, 163, 156), "CORAL" : (226, 136, 144), "GREY" : (142, 162, 181), "SKIP" : ()}
+cols_dict = {
+    "RED": (208, 68, 74),
+    "BLUE": (62, 91, 234),
+    "GREEN": (55, 156, 95),
+    "PINK": (241, 123, 217),
+    "ORANGE": (241, 156, 70),
+    "YELLOW": (241, 246, 130),
+    "BLACK": (97, 111, 122),
+    "WHITE": (223, 240, 251),
+    "PURPLE": (134, 91, 214),
+    "BROWN": (138, 110, 83),
+    "CYAN": (95, 245, 245),
+    "LIME": (108, 244, 107),
+    "MAROON": (121, 75, 95),
+    "ROSE": (241, 213, 236),
+    "BANANA": (239, 244, 199),
+    "GRAY": (142, 162, 181),
+    "TAN": (162, 163, 156),
+    "CORAL": (226, 136, 144),
+    "GREY": (142, 162, 181),
+    "SKIP": (),
+}
 
-def col_diff(col1 : tuple, col2 : tuple) -> int:
+
+def col_diff(col1: tuple, col2: tuple) -> int:
     return abs(col1[0] - col2[0]) + abs(col1[1] - col2[1]) + abs(col1[2] - col2[2])
 
-def find_col_pos(dimensions, col : str):
+
+def find_col_pos(dimensions, col: str):
     x = dimensions[0] + round(dimensions[2] / 7.38)
     y = dimensions[1] + round(dimensions[3] / 4.30)
 
@@ -34,7 +55,8 @@ def find_col_pos(dimensions, col : str):
                 return (x + x_offset * i, y + y_offset * j)
     return None
 
-def vote(color : str = "SKIP"):
+
+def vote(color: str = "SKIP"):
     dimensions = get_dimensions()
     x = dimensions[0] + round(dimensions[2] / 1.12)
     y = dimensions[1] + round(dimensions[3] / 19.6)
@@ -45,12 +67,21 @@ def vote(color : str = "SKIP"):
     if pos is None:
         # skip
         time.sleep(0.3)
-        pyautogui.click(dimensions[0] + round(dimensions[2] / 6.74), dimensions[1] + round(dimensions[3] / 1.15), duration=0.2)
+        pyautogui.click(
+            dimensions[0] + round(dimensions[2] / 6.74),
+            dimensions[1] + round(dimensions[3] / 1.15),
+            duration=0.2,
+        )
         time.sleep(0.3)
-        pyautogui.click(dimensions[0] + round(dimensions[2] / 3.87), dimensions[1] + round(dimensions[3] / 1.17), duration=0.2)
+        pyautogui.click(
+            dimensions[0] + round(dimensions[2] / 3.87),
+            dimensions[1] + round(dimensions[3] / 1.17),
+            duration=0.2,
+        )
     else:
         pyautogui.click(pos, duration=0.2)
         pyautogui.click(pos[0] + round(dimensions[2] / 8.07), pos[1], duration=0.2)
+
 
 def generate_files():
     possible_tasks = utility.load_dict().keys()
@@ -58,39 +89,41 @@ def generate_files():
         with open(os.path.join(SOLVER_PATH, f"{task}.py"), "w") as f:
             f.close()
 
-def chat(can_vote_flag : bool):
+
+def chat(can_vote_flag: bool):
     if utility.isDead():
         print("chat dead cycle")
         while utility.in_meeting():
-            if keyboard.is_pressed('`'):
+            if keyboard.is_pressed("`"):
                 raise SystemExit(0)
-            time.sleep(1/60)
+            time.sleep(1 / 60)
             continue
         time.sleep(10)
         return
-    
+
     print("회의 시작. 투표 신호를 대기합니다...")
     player_color = utility.getGameData()["color"]
     controller = info_pipe.get_controller()
     vote_color = controller.get_vote_info(player_color)
     print(f"초기 투표 신호: {vote_color}")
-    while vote_color is None and utility.in_meeting():
-        if keyboard.is_pressed('`'):
+    while (vote_color == "None" or vote_color == "NONE") and utility.in_meeting():
+        if keyboard.is_pressed("`"):
             raise SystemExit(0)
-        time.sleep(1/60)
-        vote_color = controller.get_vote_info(player_color)    
+        time.sleep(1 / 60)
+        vote_color = controller.get_vote_info(player_color)
 
     # 스킵 투표 스크립트 실행
     print("투표 신호를 받아 투표를 실행합니다...", vote_color)
     vote(vote_color)
 
     while utility.in_meeting():
-        if keyboard.is_pressed('`'):
+        if keyboard.is_pressed("`"):
             raise SystemExit(0)
-        time.sleep(1/60)
+        time.sleep(1 / 60)
+
 
 def solve_task(task_name=None, task_location=None) -> int:
-    """ 
+    """
     Runs the correct task solver file in a subprocess
 
     Note - the AI only goes to the upper location of sabotages
@@ -103,11 +136,11 @@ def solve_task(task_name=None, task_location=None) -> int:
         1 if meeting was called or died
 
         2 if a meeting was called and the task was inspect sample (so it doesn't wait later)
-        
+
         -1 if task not found
     """
     print(f"solving task: {task_name} at {task_location}")
-    dead : bool = utility.isDead()
+    dead: bool = utility.isDead()
     if task_name == "vote":
         print("Should never be here")
         if not dead:
@@ -139,14 +172,14 @@ def solve_task(task_name=None, task_location=None) -> int:
 
         # Wait for process to finish
         while p.poll() is None:
-            if utility.in_meeting() or keyboard.is_pressed('`'):
+            if utility.in_meeting() or keyboard.is_pressed("`"):
                 p.kill()
                 return 1
-            time.sleep(1/30)
+            time.sleep(1 / 30)
 
-        time.sleep(3) # Fake doing stuff
+        time.sleep(3)  # Fake doing stuff
         return 0
-    
+
     if utility.is_urgent_task() is not None:
         if task_name is not None and task_name != utility.is_urgent_task()[0]:
             return 1
@@ -164,19 +197,22 @@ def solve_task(task_name=None, task_location=None) -> int:
 
         # Wait for process to finish
         while p.poll() is None:
-            if utility.in_meeting() or (utility.isDead() != dead) or keyboard.is_pressed('`'):
+            if (
+                utility.in_meeting()
+                or (utility.isDead() != dead)
+                or keyboard.is_pressed("`")
+            ):
                 p.kill()
                 if task_name == "Inspect Sample" or task_name == "Reboot Wifi":
                     return 2
                 else:
                     return 1
-            time.sleep(1/30)
+            time.sleep(1 / 30)
 
         if task_name == "Inspect Sample" or task_name == "Reboot Wifi":
             return 2
         else:
             return 0
-    
+
     print("Task not found")
     return -1
-
