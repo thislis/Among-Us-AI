@@ -1,11 +1,12 @@
 import time
+import multiprocessing
 from utility import *
+from utils.task_utility import initialize_service, close_service
 from math import dist
 import networkx as nx
 from solver import *
 from random import choice
 import keyboard
-import amongus_reader
 
 inspect_sample_flag : bool = False
 
@@ -74,7 +75,8 @@ def idle(G):
         if urgent is not None:
             dict = load_dict()
             destination = tuple(dict[urgent[0]][urgent[1]])
-        move_return_code = move(list(nx.shortest_path(G, nearest, destination, weight="weight")), G)
+        destination_node = get_nearest_node(graph, destination)
+        move_return_code = move(list(nx.shortest_path(G, nearest, destination_node, weight="weight")), G)
         if isImpostor():
             solve_task(get_nearest_task()[0])
             urgent = is_urgent_task()
@@ -91,7 +93,8 @@ def idle(G):
             if urgent is not None and urgent[0] == "Restore Oxygen":
                 if (is_urgent_task() is not None):
                     # TODO: Position is hard coded to skeld for now - fine for polus
-                    move(list(nx.shortest_path(G, nearest, (6.521158, -7.138555), weight="weight")), G)
+                    destination_node = get_nearest_node(graph, (6.521158, -7.138555))
+                    move(list(nx.shortest_path(G, nearest, destination_node, weight="weight")), G)
                     solve_task(task_name="Restore Oxygen", task_location="Admin")
                 nearest = move_to_nearest_node(graph)
         if move_return_code == 1:
@@ -141,9 +144,10 @@ def move_and_complete_tasks(G, move_list, tasks):
             nearest = move_to_nearest_node(graph)
             continue
         tsk = get_nearest_task(tasks[0])
-
+        print(f"Nearest task: {tsk[0]} at distance {tsk[1]} in {tsk[2]}")
         # Issue is due do tsk being too high here - get_nearest_task
         if tsk[1] > 1.5:
+            print("shit!!! task is too far")
             return -1
 
         # Inspect sample cases
@@ -165,7 +169,8 @@ def move_and_complete_tasks(G, move_list, tasks):
 
             if is_urgent_task() is not None:
                 # TODO: Position is hard coded to skeld for now - fine for polus
-                move(list(nx.shortest_path(G, nearest, (6.521158, -7.138555), weight="weight")), G)
+                destination_node = get_nearest_node(graph, (6.521158, -7.138555))
+                move(list(nx.shortest_path(G, nearest, destination_node, weight="weight")), G)
                 return_code = solve_task(task_name="Restore Oxygen", task_location="Admin")
             nearest = move_to_nearest_node(graph)
 
@@ -249,10 +254,11 @@ def move_and_complete_tasks(G, move_list, tasks):
 
 def main(G) -> int:
     print("yeah!!")
-    idle(G)
+    # idle(G)
     
     tasks = get_task_list()
-    move_list = get_move_list(tasks)
+    print(f"tasks: {tasks}")
+    move_list = get_move_list(tasks, G)
     move_and_complete_tasks(G, move_list, tasks)
 
     
@@ -261,7 +267,7 @@ def main(G) -> int:
     # tasks = get_task_list()
 
     # # Initialize places to move to
-    # move_list = get_move_list(tasks)
+    # move_list = get_move_list(tasks, G)
 
     # set_can_vote_false()
 
@@ -292,12 +298,23 @@ def main(G) -> int:
     #         return 0
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     try:
+        initialize_controller()
+        initialize_service()
         graph = load_G("SHIP")
         focus()
         main(graph)
+        
+    except KeyboardInterrupt:
+        print("\n프로그램을 중단합니다.")
+    except Exception as e:
+        print(f"오류 발생: {e}")
+        raise e
     finally:
-        amongus_reader.reset_data_service()
+        close_controller()
+        close_service()
+        print("프로그램이 종료되었습니다.")
 
     # # Focus app
     # focus()

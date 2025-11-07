@@ -13,14 +13,40 @@ import sys
 import os
 import solver
 import keyboard
-sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/task-solvers")
-from report import can_report
-from kill import can_kill
-from task_utility import click_use
-from amongus_reader.service import AmongUsReader
+from utils.report import can_report
+from utils.kill import can_kill
+from utils.task_utility import click_use, get_service
+from amongus_reader import AmongUsReader
+from amongus_reader.service.task_lookup import TASK_TYPE_NAMES
+from amongus_reader.tools.check_player_death import get_player_death_status
+from locator import place
+from info_pipe import pipewrapper, PipeController, can_see
+from is_impostor import is_impostor
 
-r = AmongUsReader(process_name="Among Us.exe", debug=False)
-r.attach()
+controller: PipeController = None # controller를 None으로 초기화
+
+def get_controller() -> PipeController:
+    """컨트롤러에 접근할 때 사용하는 함수."""
+    global controller
+    return controller
+
+def initialize_controller():
+    """
+    메인 프로그램에서 호출할 컨트롤러 초기화 함수.
+    전역 controller 변수를 설정합니다.
+    """
+    global controller
+    if controller is None:
+        print("[Utility] PipeController를 초기화합니다...")
+        controller = PipeController(pipewrapper())
+
+def close_controller():
+    """메인 프로그램 종료 시 컨트롤러를 닫는 함수."""
+    global controller
+    if controller:
+        print("[Utility] PipeController를 닫습니다...")
+        controller.close()
+        controller = None
 
 SHIP_TASK_TYPES = {}
 
@@ -71,146 +97,46 @@ def load_graph_list(map_name) -> list:
         return []
 
 def getGameData():
-    player = r.get_local_player()
-    players = r.list_players()
+    service = get_service()
+    player = service.get_local_player()
+    status = "impostor" if is_impostor() else "crewmate"
+    players = service.list_players()
     nearbyPlayers = {}
-    THRESHOLD = 3.0
     for pl in players:
         if not pl.is_local_player:
-            d = dist(player.position, pl.position)
-            if (d) < THRESHOLD:
+            if can_see(player.position, pl.position, status=="impostor"):
                 nearbyPlayers[pl.color_id] = pl.position
-                # print(f"found: {translatePlayerColorID(pl.color_id)}, distance={d}")
 
-    x, y = r.positions().get(player.player_id, (0, 0))
-    print(f"positions={x, y}")
-    status = "crewmate" # "impostor"
-    print(r.get_tasks(player.player_id))
-    tasks = [
-        "Swipe Card",
-        "Align Engine Output",
-        "Clean O2 Filter",
-        "Divert Power to Shields"
-    ]
-    task_locations = [
-        "Admin",
-        "Upper Engine",
-        "O2",
-        "Electrical"
-    ]
-    task_steps = [
-        "0/1",
-        "0/2",
-        "0/1",
-        "0/2"
-    ]
+    pos_map = service.positions()
+    my_pos = pos_map.get(player.color_id) if player.color_id is not None else None
+
+    tasks_info = service.get_tasks(player.color_id)
+    tasks = [TASK_TYPE_NAMES[t.task_type_id] for t in tasks_info]
+    task_locations = [t.location for t in tasks_info]
+    task_steps = [f"{t.step}/{t.max_step}" for t in tasks_info]
     map_id = "SHIP"
-    dead = False
-    inMeeting = False
-    speed = 2.
-    color = player.color_name.upper()
-    room = "Unknown"
-    lights = 0
+    dead, diag = False, False # get_player_death_status(service._ds, player.color_id)
+    lights = 1
     playersVent = {}
     playersDead = {}
-    print(color)
-    # r.detach()
-
-    return {"position" : (x,y), "status" : status, "tasks" : tasks, 
-            "task_locations" : task_locations, "task_steps" : task_steps, 
-            "map_id" : map_id, "dead": dead, "inMeeting" : inMeeting, 
-            "speed" : speed, "color" : color, "room" : room, "lights" : lights, 
-            "nearbyPlayers" : nearbyPlayers, "playersVent" : playersVent, "playersDead": playersDead}
     
-    # """ 
-    # Reads sendData.txt and parses data.
-        
-    # Returns a dict containing all the data.
-    #     {"position" : (x,y), "status" : status, "tasks" : tasks, 
-    #     "task_locations" : task_locations, "task_steps" : task_steps, 
-    #     "map_id" : map_id, "dead": dead, "inMeeting" : inMeeting, 
-    #     "speed" : speed, "color" : color, "room" : room, "lights" : lights, 
-    #     "nearbyPlayers" : nearbyPlayers, "playersVent" : playersVent, "playersDead": playersDead}
-    # """
-    # global impostor, MAP
-
-    # # number of parameters (lines) in data
-    # dataLen : int = 15
-    # x,y,status,tasks, task_locations, task_steps, map_id, dead, inMeeting, speed, color, room, lights, nearbyPlayers, playersVent, playersDead = (None,)*(dataLen + 1) # x and y are 1 line, so add 1
-    # lines = []
-    # while True:
-    #     with open(SEND_DATA_PATH) as file:
-    #         lines = file.readlines()
-    #         if len(lines) < dataLen:
-    #             file.close()
-    #             continue
-
-    #         x = float(lines[0].split()[0])
-    #         y = float(lines[0].split()[1])
-    #         status = lines[1].strip()
-    #         impostor = status
-
-    #         tasks = lines[2].rstrip().strip('][').split(", ")
-
-    #         task_locations = lines[3].rstrip().strip('][').split(", ")
-
-    #         task_steps = lines[4].rstrip().strip('][').split(", ")
-
-    #         map_id = lines[5].rstrip()
-    #         MAP = map_id.upper()
-
-    #         dead = bool(int(lines[6].rstrip()))
-
-    #         inMeeting = bool(int(lines[7].rstrip()))
-
-    #         speed = float(lines[8].rstrip())
-
-    #         color = translatePlayerColorID(int(lines[9].rstrip()))
-
-    #         room = lines[10].rstrip()
-
-    #         lights = False if '0' in lines[11].rstrip() else True
-
-    #         nearbyPlayers = {}
-    #         try:
-    #             bigLongInput = lines[12].rstrip().strip('][').split(", ")
-    #             for item in bigLongInput:
-    #                 item = item.split("/")
-    #                 nearbyPlayers[translatePlayerColorID(int(item[0]))] = (float(item[1]), float(item[2]))
-    #         except ValueError:
-    #             nearbyPlayers = []
-
-    #         playersVent = {}
-    #         try:
-    #             bigLongInput = lines[13].rstrip().strip('][').split(", ")
-    #             for item in bigLongInput:
-    #                 item = item.split("/")
-    #                 playersVent[translatePlayerColorID(int(item[0]))] = False if '0' in item[1] else True
-    #         except ValueError:
-    #             playersVent = []
-
-    #         playersDead = {}
-    #         try:
-    #             bigLongInput = lines[14].rstrip().strip('][').split(", ")
-    #             for item in bigLongInput:
-    #                 item = item.split("/")
-    #                 playersDead[translatePlayerColorID(int(item[0]))] = False if '0' in item[1] else True
-    #         except ValueError:
-    #             playersDead = []
-
-    #     if None in [x,y,status,tasks, task_locations, task_steps, map_id, dead, inMeeting, speed, color, room, nearbyPlayers, playersVent, playersDead]:
-    #         continue
-    #     break
-
-    # if dead or status == "impostor":
-    #     if tasks[0] == "Submit Scan" and task_locations[0] == "Hallway":
-    #         tasks.pop(0)
-    #         task_locations.pop(0)
-    # return {"position" : (x,y), "status" : status, "tasks" : tasks, 
-    #         "task_locations" : task_locations, "task_steps" : task_steps, 
-    #         "map_id" : map_id, "dead": dead, "inMeeting" : inMeeting, 
-    #         "speed" : speed, "color" : color, "room" : room, "lights" : lights, 
-    #         "nearbyPlayers" : nearbyPlayers, "playersVent" : playersVent, "playersDead": playersDead}
+    return {
+        "position": my_pos,
+        "status": status,
+        "tasks": tasks,
+        "task_locations": task_locations,
+        "task_steps": task_steps,
+        "map_id": map_id,
+        "dead": dead,
+        "inMeeting": False,
+        "speed": 2.0,
+        "color": player.color_name.upper(),
+        "room": place(*my_pos),
+        "lights": lights, # TODO: 조명 상태 확인 로직 추가
+        "nearbyPlayers": nearbyPlayers,
+        "playersVent": playersVent, # TODO: 환풍구 상태 확인 로직 추가
+        "playersDead": playersDead
+    }
 
 def getImposterData() -> dict:
     """
@@ -807,7 +733,7 @@ def get_task_list() -> list:
 
     return [data["tasks"], data["task_locations"], data["task_steps"]]
 
-def get_move_list(tasks) -> list:
+def get_move_list(tasks, G) -> list:
     """Generates a list of destination coordinates"""
     move_list = []
     dict = load_dict()
@@ -815,7 +741,8 @@ def get_move_list(tasks) -> list:
         if True:
         # if not is_task_done(tasks[0][i]):
             try:
-                move_list.append(tuple(dict[tasks[0][i]][tasks[1][i]]))
+                task_pos = get_nearest_node(G, tuple(dict[tasks[0][i]][tasks[1][i]]))
+                move_list.append(task_pos)
             except KeyError:
                 continue
 
@@ -837,6 +764,7 @@ def update_move_list(move_list, old_tasks, tsk):
         return
 
     tasks = get_task_list()
+
     dict = load_dict()
     task = tsk
     urgent_tasks = ["Reset Reactor", "Restore Oxygen"]
@@ -856,7 +784,7 @@ def update_move_list(move_list, old_tasks, tsk):
         progress[0] += 1
 
     # If task is incomplete, 
-    if progress[0] < progress[1]:
+    if not is_task_done(task):
 
         # Get correct index of updated task
         index = tasks[0].index(task)
@@ -871,9 +799,12 @@ def update_move_list(move_list, old_tasks, tsk):
     return task
 
 def in_meeting() -> bool:
-    data = getGameData()
-
-    return data["inMeeting"]
+    meet = False
+    # if not controller:
+    #     meet = False
+    # else:
+    #     meet = controller.is_meeting()
+    return meet
 
 def isImpostor() -> bool:
     data = getGameData()
@@ -952,7 +883,7 @@ def focus():
     else:
         print("Window not found")
 
-def move(dest_list : list, G = load_G(getGameData()["map_id"])) -> int:
+def move(dest_list : list, G = None) -> int:
     """ Handles player movement, reporting, and kills
 
         Parameters
@@ -968,6 +899,9 @@ def move(dest_list : list, G = load_G(getGameData()["map_id"])) -> int:
         int
             Returns 0 on success, 1 if interrupted by a meeting"""
 
+    if G is None:
+        G = load_G(getGameData()["map_id"])
+    
     global gamepad
 
     # If player is a ghost, move directly to task
@@ -1036,6 +970,7 @@ def move(dest_list : list, G = load_G(getGameData()["map_id"])) -> int:
         data = getGameData()
 
         pos = data["position"]
+        # print(f"current pos: {pos}")
 
         for loc in PB_DOOR_LOCATIONS:
             if (dist(pos, loc) < 1) and not clicked_use:

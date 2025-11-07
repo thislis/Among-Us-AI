@@ -10,8 +10,8 @@ from amongus_reader.core import Offsets
 class PlayersReader:
     def __init__(self, ds: AmongUsDataService) -> None:
         self._ds = ds
-        # Cached mapping of player_id -> PlayerControl pointer for fast per-call positions
-        self._pc_by_pid: Dict[int, int] = {}
+        # Cached mapping of color_id -> PlayerControl pointer for fast per-call positions
+        self._pc_by_color_id: Dict[int, int] = {}
         self._last_pc_map_ts: float = 0.0
         self._pc_map_ttl: float = 1.0  # seconds
         self._pc_klass: Optional[int] = None
@@ -35,43 +35,44 @@ class PlayersReader:
 
     def positions(self) -> Dict[int, Tuple[float, float]]:
         # Per-call fast path: reuse PlayerControl pointers and only read positions
+        # Returns dict with color_id as key
         self._ensure_pc_map()
         out: Dict[int, Tuple[float, float]] = {}
-        if not self._pc_by_pid:
+        if not self._pc_by_color_id:
             return out
         removed = 0
-        for pid, pc_ptr in list(self._pc_by_pid.items()):
+        for color_id, pc_ptr in list(self._pc_by_color_id.items()):
             try:
                 if not self._verify_pc_ptr(pc_ptr):
-                    self._pc_by_pid.pop(pid, None)
+                    self._pc_by_color_id.pop(color_id, None)
                     removed += 1
                     continue
                 pos = self._ds._get_player_position(pc_ptr)
                 if pos is not None:
-                    out[pid] = pos
+                    out[color_id] = pos
             except Exception:
                 # If reading fails, drop this entry; it will be rebuilt on next map refresh
-                self._pc_by_pid.pop(pid, None)
+                self._pc_by_color_id.pop(color_id, None)
                 removed += 1
         # Heuristics: if too many removed or count dropped significantly, rebuild immediately
         if removed >= 2 or (self._last_known_count and len(out) < max(1, self._last_known_count // 2)):
             self._rebuild_pc_map(force=True)
             # Try one more quick read if map rebuilt
             out.clear()
-            for pid, pc_ptr in list(self._pc_by_pid.items()):
+            for color_id, pc_ptr in list(self._pc_by_color_id.items()):
                 try:
                     if not self._verify_pc_ptr(pc_ptr):
                         continue
                     pos = self._ds._get_player_position(pc_ptr)
                     if pos is not None:
-                        out[pid] = pos
+                        out[color_id] = pos
                 except Exception:
                     continue
         self._last_known_count = len(out)
         return out
 
     def colors(self) -> Dict[int, str]:
-        return self._ds.get_color_mapping()
+        return self._ds.get_color_mapping_by_color_id()
 
     def count(self) -> int:
         return self._ds.get_player_count()
@@ -79,7 +80,7 @@ class PlayersReader:
     # Internal helpers
     def _ensure_pc_map(self) -> None:
         now = time.time()
-        if (now - self._last_pc_map_ts) < self._pc_map_ttl and self._pc_by_pid:
+        if (now - self._last_pc_map_ts) < self._pc_map_ttl and self._pc_by_color_id:
             return
         self._rebuild_pc_map(force=False)
 
@@ -92,15 +93,14 @@ class PlayersReader:
             new_map: Dict[int, int] = {}
             for npi in self._ds._get_all_npi_objects():
                 try:
-                    npi_fields = npi + fields_off
-                    pid = self._ds.memory.read_u8(npi_fields + 0x8)
+                    color_id = self._ds._get_player_color_id(npi)
                     pc = self._ds._get_player_control_from_npi(npi)
-                    if pid is not None and pc:
-                        new_map[int(pid)] = int(pc)
+                    if 0 <= color_id <= 18 and pc:
+                        new_map[int(color_id)] = int(pc)
                 except Exception:
                     continue
             if new_map:
-                self._pc_by_pid = new_map
+                self._pc_by_color_id = new_map
                 self._last_pc_map_ts = now
                 # refresh klass cache lazily
                 self._pc_klass = None
@@ -121,7 +121,7 @@ class PlayersReader:
 
     # External controls
     def invalidate_pc_map(self) -> None:
-        self._pc_by_pid.clear()
+        self._pc_by_color_id.clear()
         self._last_pc_map_ts = 0.0
         self._pc_klass = None
         self._last_known_count = 0

@@ -17,16 +17,22 @@ TASK_TYPE_NAMES: Dict[int, str] = {
     0x04: "Start Reactor",
     0x05: "Swipe Card",
     0x06: "Clear Asteroids",
-    0x07: "Download Data",
+    0x07: "Upload Data",
+    0x08: "Inspect Sample",
     0x09: "Empty Chute",
+    0x0A: "Empty Garbage",
     0x0B: "Align Engine Output",
     0x0C: "Fix Wiring",
+    0x0D: "Calibrate Distributor",
     0x0E: "Divert Power",
+    0x0F: "Unlock Manifolds",
+    0x10: "Reset Reactor",
+    0x11: "Fix Lights",
     0x12: "Clean O2 Filter",
     0x14: "Restore Oxygen",
     0x15: "Stabilize Steering",
     0x1C: "Run Diagnostics",
-    0x3C: "Clean Vent"
+    0x3C: "Vent Cleaning"
 }
 
 
@@ -40,22 +46,23 @@ TASK_COORDS_SHIP: Dict[str, Dict[str, Tuple[float, float]]] = {
     },
     "Chart Course": {"Navigation": (17.43, -3.12)},
     "Start Reactor": {"Reactor": (-21.47, -6.12)},
-    "Swipe Card": {"Admin": (5.92, -9.02)},
+    "Swipe Card": {"Admin": (5.82, -8.92)},
     "Clear Asteroids": {"Weapons": (8.71, 1.26)},
     "Download Data": {
         "Communications": (4.30, -14.87),
-        "Admin": (2.69, -6.87),
+        "Admin": (2.51, -6.6),
+        "Cafeteria": (3.32, 4.67),
         "Electrical": (-9.88, -8.05),
-        "Navigation": (16.92, -3.12),
+        "Navigation": (16.92, -2.90),
         "Weapons": (8.71, 3.37),
     },
     "Align Engine Output": {
-        "Upper Engine": (-19.36, -1.22),
+        "Upper Engine": (-19.36, -1.05),
         "Lower Engine": (-18.92, -13.43),
     },
     "Fix Wiring": {
-        "Navigation": (14.59, -4.70),
-        "Cafeteria": (-5.06, 4.79),
+        "Navigation": (14.59, -4.40),
+        "Cafeteria": (-5.06, 4.90),
         "Security": (-15.54, -5.16),
         "Electrical": (-7.59, -8.11),
         "Storage": (-1.97, -9.40),
@@ -76,18 +83,30 @@ TASK_COORDS_SHIP: Dict[str, Dict[str, Tuple[float, float]]] = {
         "Oxygen": (8.31, -3.15),
         "Shields": (10.80, -10.72),
     },
+    "Calibrate Distributor": {
+        "Electrical": (-5.85, -7.95),
+    },
     "Clean O2 Filter": {"Oxygen": (6.06, -3.31)},
     "Restore Oxygen": {"Oxygen": (6.75, -3.43)},
-    "Stabilize Steering": {"Navigation": (0.0, 0.0)},
+    "Stabilize Steering": {"Navigation": (17.60, -4.51)},
 }
 
 
 MULTISTEP_HINT: Dict[int, int] = {
     0x02: 2,  # Fuel Engines
+    0x06: 20,  # Clear Asteroids
     0x07: 2,  # Download/Upload Data
     0x0B: 2,  # Align Engine Output
     0x0C: 3,  # Fix Wiring
     0x0E: 2,  # Divert Power
+}
+
+# Certain tasks expose step/max_step values that do not reflect the in-game panels.
+# Override their display totals / progress offsets to match what players expect.
+PROGRESS_OVERRIDES: Dict[int, Dict[str, int]] = {
+    0x04: {"suppress_progress": True},
+    0x0D: {"total": 1, "offset": -1, "apply_offset_with_step": True},  # Calibrate Distributor
+    0x12: {"suppress_progress": True},
 }
 
 
@@ -267,7 +286,8 @@ def format_task_entry(
         # best-effort fallback
         _, _, coord = resolve_task_location(task.task_type_id)
 
-    if task.step is not None and task.max_step is not None:
+    using_step = task.step is not None and task.max_step is not None
+    if using_step:
         completed_steps = int(task.step)
         total_steps = max(int(task.max_step), 1)
     else:
@@ -276,15 +296,58 @@ def format_task_entry(
             total_steps = MULTISTEP_HINT[task.task_type_id]
         completed_steps = completed_counts.get(task.task_type_id, 0)
 
+    override = PROGRESS_OVERRIDES.get(task.task_type_id)
+    if override:
+        if override.get("suppress_progress"):
+            completed_steps = None
+            total_steps = None
+        else:
+            if "total" in override:
+                total_steps = max(override["total"], 1)
+            offset = override.get("offset")
+            if offset is not None:
+                if using_step:
+                    if override.get("apply_offset_with_step"):
+                        completed_steps += offset
+                else:
+                    completed_steps += offset
+            completed_steps = max(0, min(completed_steps, total_steps))
+
+    canonical_room_norm = normalize_room_label(room_canonical) if room_canonical else None
+
+    # Align Engine Output: progress determined by location order (Upper -> Lower)
+    if task.task_type_id == 0x0B:
+        stages = ["Upper Engine", "Lower Engine"]
+        if canonical_room_norm in stages:
+            total_steps = len(stages)
+            completed_steps = stages.index(canonical_room_norm)
+
+    # Download / Upload Data: stage depends on current room (Admin/Office implies upload)
+    if task.task_type_id == 0x07:
+        total_steps = 2
+        if canonical_room_norm and canonical_room_norm.lower() in {"admin", "office"}:
+            completed_steps = 1
+        else:
+            completed_steps = 0
+
     room_display = display_room(room_canonical)
     name_display = base_name if base_name != resolved_name else resolved_name
 
     if task.task_type_id == 0x0E:  # Divert Power stages
-        dest = task.destination
-        if not dest and room_canonical and room_canonical.lower() == "electrical":
-            dest = choose_divert_destination(room_canonical)
-        if dest:
-            name_display = f"Divert Power to {dest}"
+        dest_val = task.destination
+        if isinstance(dest_val, str) and dest_val:
+            dest_name = dest_val
+        elif dest_val is not None:
+            dest_name = system_type_to_name(dest_val)
+        else:
+            dest_name = None
+
+        if not dest_name and room_canonical and room_canonical.lower() == "electrical":
+            dest_name = choose_divert_destination(room_canonical)
+
+        if dest_name:
+            dest_display = display_room(dest_name)
+            name_display = f"Divert Power to {dest_display}"
         elif room_canonical and room_canonical.lower() != "electrical":
             name_display = "Accept Diverted Power"
 
@@ -299,4 +362,3 @@ def format_task_entry(
         canonical_room=room_canonical,
     )
     return entry
-

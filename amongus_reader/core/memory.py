@@ -12,8 +12,8 @@ class MemoryClient:
     def __init__(self, process_name: str = "Among Us.exe") -> None:
         self.pm = pymem.Pymem(process_name)
         self.base = self._get_module_base("GameAssembly.dll")
-        self.is_64 = self._detect_architecture()
         self._kernel32 = ctypes.windll.kernel32
+        self.is_64 = self._detect_architecture()
 
     def _get_module_base(self, name: str) -> int:
         mod = pymem.process.module_from_name(self.pm.process_handle, name)
@@ -21,9 +21,29 @@ class MemoryClient:
 
     def _detect_architecture(self) -> bool:
         try:
-            return pymem.process.is_64_bit(self.pm.process_handle)
+            is_64 = pymem.process.is_64_bit(self.pm.process_handle)
         except Exception:
-            return ctypes.sizeof(ctypes.c_void_p) == 8
+            is_64 = ctypes.sizeof(ctypes.c_void_p) == 8
+
+        if not is_64:
+            try:
+                is_wow64 = wintypes.BOOL()
+                if self._kernel32.IsWow64Process(self.pm.process_handle, ctypes.byref(is_wow64)):
+                    if not is_wow64.value and ctypes.sizeof(ctypes.c_void_p) == 8:
+                        is_64 = True
+            except Exception:
+                pass
+
+        if not is_64:
+            try:
+                test_addr = self.base + 0x10
+                high = self.pm.read_uint(test_addr + 4)
+                if high:
+                    is_64 = True
+            except Exception:
+                pass
+
+        return is_64
 
     def close(self) -> None:
         try:
@@ -31,8 +51,46 @@ class MemoryClient:
         except Exception:
             pass
 
+    def _virtual_query(self, addr: int) -> Optional[ctypes.Structure]:
+        class MEMORY_BASIC_INFORMATION(ctypes.Structure):
+            _fields_ = [
+                ("BaseAddress", ctypes.c_void_p),
+                ("AllocationBase", ctypes.c_void_p),
+                ("AllocationProtect", wintypes.DWORD),
+                ("RegionSize", ctypes.c_size_t),
+                ("State", wintypes.DWORD),
+                ("Protect", wintypes.DWORD),
+                ("Type", wintypes.DWORD),
+            ]
+
+        mbi = MEMORY_BASIC_INFORMATION()
+        res = self._kernel32.VirtualQueryEx(self.pm.process_handle, ctypes.c_void_p(int(addr)), ctypes.byref(mbi), ctypes.sizeof(mbi))
+        if res == 0:
+            return None
+        return mbi
+
+    def is_address_committed(self, addr: int) -> bool:
+        try:
+            info = self._virtual_query(addr)
+        except Exception:
+            return False
+        if not info:
+            return False
+        MEM_COMMIT = 0x1000
+        PAGE_GUARD = 0x100
+        PAGE_NOACCESS = 0x01
+        state = int(info.State)
+        prot = int(info.Protect)
+        if state != MEM_COMMIT:
+            return False
+        if prot == PAGE_NOACCESS or (prot & PAGE_GUARD):
+            return False
+        return True
+
     # primitives
     def read_ptr(self, addr: int) -> int:
+        if not self.is_address_committed(addr):
+            raise pymem.exception.MemoryReadError(addr, 8 if self.is_64 else 4, 299)
         if self.is_64:
             return self.pm.read_ulonglong(addr)
         else:

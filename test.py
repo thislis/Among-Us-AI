@@ -16,7 +16,7 @@ try:
     colors = r.colors()
 
     # 태스크 (로컬 플레이어 기준 예시)
-    tasks = r.get_tasks(local_id) if local_id is not None else []
+    tasks = r.get_tasks(0) if local_id is not None else []
 
     # HUD Report 버튼 활성 여부(진단 포함)
     active, diag = r.is_report_active()
@@ -30,9 +30,10 @@ try:
         print(f"local_is_impostor={flag}")
         print("diagnostics:", diag)
     print("local_id:", local_id)
-    print("my_pos:", my_pos)
-    print("colors:", colors)
-    print("tasks:", tasks)
+    print("my_pos:", local_player.position)
+    print("tasks:")
+    for task in tasks:
+        print(f"task_type_id: {task.task_type_id:2}, step: {task.step}/{task.max_step}, location: {task.location}")
     print("report_active:", active)
 finally:
     r.detach()

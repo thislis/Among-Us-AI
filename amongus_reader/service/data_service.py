@@ -974,6 +974,22 @@ class AmongUsDataService:
             pass
         return 0
 
+    def _get_npi_by_color_id(self, color_id: int) -> int:
+        try:
+            cid = int(color_id)
+            if not (0 <= cid <= 18):
+                return 0
+            for npi in self._get_all_npi_objects():
+                try:
+                    npi_color_id = self._get_player_color_id(npi)
+                    if npi_color_id == cid:
+                        return npi
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return 0
+
     def _get_tasks_list_from_npi(self, npi_ptr: int) -> int:
         if not npi_ptr:
             return 0
@@ -1168,7 +1184,7 @@ class AmongUsDataService:
                 return
             local_player_ptr = self._get_local_player_ptr()
             all_npi = self._get_all_npi_objects()
-            for npi in all_npi:
+            for idx, npi in enumerate(all_npi):
                 try:
                     player_control = self._get_player_control_from_npi(npi)
                     if not player_control:
@@ -1181,7 +1197,44 @@ class AmongUsDataService:
                         continue
                     fields_off = Offsets.OBJ_FIELDS_OFF_X64 if self.memory.is_64 else Offsets.OBJ_FIELDS_OFF_X86
                     npi_fields = npi + fields_off
-                    player_id = self.memory.read_u8(npi_fields + 0x8)
+                    pc_fields = player_control + fields_off
+                    
+                    # Try to read player_id from multiple locations
+                    # First try NPI fields (common offsets)
+                    player_id = None
+                    for offset in (0x8, 0x10, 0x18, 0x20, 0x24, 0x28, 0x2C, 0x30, 0x34, 0x38):
+                        try:
+                            candidate_id = self.memory.read_u8(npi_fields + offset)
+                            # Check if it's a reasonable player_id (0-15 is typical for Among Us)
+                            if 0 <= candidate_id < 16:
+                                # Verify it's not just a common value by checking uniqueness
+                                player_id = candidate_id
+                                break
+                        except Exception:
+                            continue
+                    
+                    # If not found in NPI, try PlayerControl fields
+                    if player_id is None:
+                        for offset in (0x8, 0x10, 0x18, 0x20, 0x24, 0x28, 0x2C, 0x30, 0x34, 0x38):
+                            try:
+                                candidate_id = self.memory.read_u8(pc_fields + offset)
+                                if 0 <= candidate_id < 16:
+                                    player_id = candidate_id
+                                    break
+                            except Exception:
+                                continue
+                    
+                    # If still not found, use index-based ID to ensure uniqueness
+                    # Use the index in the NPI list as a fallback
+                    if player_id is None:
+                        player_id = idx
+                    else:
+                        # Check if this player_id is already used, if so use index
+                        existing_ids = {p.player_id for p in self._cached_players}
+                        if player_id in existing_ids:
+                            # Use sequential ID starting from max existing + 1
+                            max_id = max(existing_ids) if existing_ids else -1
+                            player_id = max_id + 1
                     is_local = (player_control == local_player_ptr)
                     if is_local:
                         self._cached_local_player = player_id
@@ -1237,9 +1290,17 @@ class AmongUsDataService:
         self._refresh_cache()
         return {p.player_id: p.position for p in self._cached_players}
 
+    def get_player_positions_by_color(self) -> Dict[int, Tuple[float, float]]:
+        self._refresh_cache()
+        return {p.color_id: p.position for p in self._cached_players}
+
     def get_color_mapping(self) -> Dict[int, str]:
         self._refresh_cache()
         return {p.player_id: p.color_name for p in self._cached_players}
+
+    def get_color_mapping_by_color_id(self) -> Dict[int, str]:
+        self._refresh_cache()
+        return {p.color_id: p.color_name for p in self._cached_players}
 
     def get_player_count(self) -> int:
         self._refresh_cache()
@@ -1262,6 +1323,48 @@ class AmongUsDataService:
                         continue
             if not npi:
                 npi = self._get_npi_by_player_id(player_id)
+            if not npi:
+                return []
+            tasks_list = self._get_tasks_list_from_npi(npi)
+            if not tasks_list:
+                return []
+            tasks = self._parse_tasks_from_list(tasks_list)
+            task_by_id: Dict[int, TaskData] = {int(t.task_id): t for t in tasks}
+            # Enrich with step info for local player's myTasks when available
+            pc = self._get_player_control_from_npi(npi)
+            if pc and tasks:
+                lst = self._find_myTasks_list_by_owner(pc)
+                objs = self._read_list_items(lst) if lst else []
+                if objs:
+                    for obj in objs:
+                        ttype, tid_guess, start_at = self._read_tasktype_from_playertask(obj, pc)
+                        if tid_guess is None:
+                            continue
+                        tid = int(tid_guess)
+                        td = task_by_id.get(tid)
+                        if td is None:
+                            td = TaskData(task_id=tid, task_type_id=int(ttype or -1), is_completed=False)
+                            task_by_id[tid] = td
+                            tasks.append(td)
+                        if ttype is not None:
+                            td.task_type_id = int(ttype)
+                        if start_at is not None:
+                            td.start_system = int(start_at)
+                            td.location = system_type_to_name(start_at)
+                        s, m = self._read_step_info_heuristic(obj, td.is_completed)
+                        td.step, td.max_step = s, m
+                        if m is not None and s is not None and m > 0 and s >= m:
+                            td.is_completed = True
+            return tasks
+        except Exception:
+            return []
+
+    def get_tasks_for_player_by_color(self, color_id: Union[int, ColorId]) -> List[TaskData]:
+        try:
+            if not self.is_attached() and not self.attach():
+                return []
+            cid = color_id.value if isinstance(color_id, ColorId) else int(color_id)
+            npi = self._get_npi_by_color_id(cid)
             if not npi:
                 return []
             tasks_list = self._get_tasks_list_from_npi(npi)
