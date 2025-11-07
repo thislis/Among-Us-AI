@@ -232,12 +232,10 @@ class InfoPipe:
         if is_currently_meeting and not self._is_meeting:
             player = self.service.get_local_player()
             old_pos = player.position
-            pyautogui.keyDown('w')
+            keys = list("wasd").shuffle()
+            pyautogui.keyDown(keys[0])
             time.sleep(0.05)
-            pyautogui.keyUp('w')
-            pyautogui.keyDown('a')
-            time.sleep(0.05)
-            pyautogui.keyUp('a')
+            pyautogui.keyUp(keys[0])
             new_pos = self.service.get_local_player().position
             if old_pos[0] != new_pos[0] or old_pos[1] != new_pos[1]:
                 is_currently_meeting = False
@@ -247,20 +245,31 @@ class InfoPipe:
                 self._upload_history_to_redis()
 
         elif not is_currently_meeting and self._is_meeting:
-            for p in self.service.list_players():
-                key = f"amongus:{p.color_name.upper()}:vote"
-                data = None
-                pipe = self.redis.pipeline()
-                pipe.set(key, json.dumps(data))
-            self.caught_kill = False
-            self.round_offset = time.time()
-            for player in self.service.list_players():
-                is_dead, diag = get_player_death_status(
-                    self.service._ds, player.color_id
-                )
-                if is_dead:
-                    self.players_warm[p.color_name] = False
-                    self.dead_players.add(player.color_name)
+            player = self.service.get_local_player()
+            old_pos = player.position
+            keys = list("wasd").shuffle()
+            pyautogui.keyDown(keys[0])
+            time.sleep(0.05)
+            pyautogui.keyUp(keys[0])
+            new_pos = self.service.get_local_player().position
+            if old_pos[0] == new_pos[0] or old_pos[1] == new_pos[1]:
+                is_currently_meeting = True
+                print("[InfoPipe] ⭐️ 미팅 종료 감지 오탐! 위치 변화가 없으므로 복구합니다.")
+            else:
+                for p in self.service.list_players():
+                    key = f"amongus:{p.color_name.upper()}:vote"
+                    data = None
+                    pipe = self.redis.pipeline()
+                    pipe.set(key, json.dumps(data))
+                self.caught_kill = False
+                self.round_offset = time.time()
+                for player in self.service.list_players():
+                    is_dead, diag = get_player_death_status(
+                        self.service._ds, player.color_id
+                    )
+                    if is_dead:
+                        self.players_warm[p.color_name] = False
+                        self.dead_players.add(player.color_name)
 
         # 3. 내부 상태 업데이트
         self._is_meeting = is_currently_meeting
