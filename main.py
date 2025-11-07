@@ -78,6 +78,13 @@ def idle(G):
             destination = tuple(dict[urgent[0]][urgent[1]])
         destination_node = get_nearest_node(graph, destination)
         move_return_code = move(list(nx.shortest_path(G, nearest, destination_node, weight="weight")), G)
+        if move_return_code == 1:
+            chat(can_vote_flag)
+            set_can_vote_false()
+            can_vote_flag = False
+            time.sleep(0.5)
+            nearest = move_to_nearest_node(graph)
+            continue
         if isImpostor():
             solve_task(get_nearest_task()[0])
             urgent = is_urgent_task()
@@ -98,13 +105,6 @@ def idle(G):
                     move(list(nx.shortest_path(G, nearest, destination_node, weight="weight")), G)
                     solve_task(task_name="Restore Oxygen", task_location="Admin")
                 nearest = move_to_nearest_node(graph)
-        if move_return_code == 1:
-            chat(can_vote_flag)
-            set_can_vote_false()
-            can_vote_flag = False
-            time.sleep(0.5)
-            nearest = move_to_nearest_node(graph)
-            continue
 
 def move_and_complete_tasks(G, move_list, tasks):
     # Initialize flags
@@ -127,6 +127,8 @@ def move_and_complete_tasks(G, move_list, tasks):
 
         # move to next task
         move_return_code = move(list(nx.shortest_path(G, nearest, move_list[0], weight="weight")), G)
+        print("move returned with code:", move_return_code)
+
 
         # if we died while moving, exit
         if dead != isDead():
@@ -150,6 +152,7 @@ def move_and_complete_tasks(G, move_list, tasks):
             nearest = move_to_nearest_node(graph)
             print("shit???")
             continue
+
         tsk = get_nearest_task(tasks[0])
         print(f"Nearest task: {tsk[0]} at distance {tsk[1]} in {tsk[2]}")
         # Issue is due do tsk being too high here - get_nearest_task
@@ -166,9 +169,17 @@ def move_and_complete_tasks(G, move_list, tasks):
         else:
             return_code = solve_task(task_name=tsk[0], task_location=tsk[2])
 
+        print("task solver is returned with:", return_code)
+
         # If task not found, exit
         if return_code == -1:
             break
+        
+        data = getGameData()
+        print("remained tasks after solving:")
+        print(data["tasks"])
+        print(data["task_locations"])
+        print(data["task_steps"])
 
         # Restore Oxygen case
         if tsk[0] == "Restore Oxygen" and return_code == 0 and not isDead():
@@ -235,8 +246,17 @@ def move_and_complete_tasks(G, move_list, tasks):
         # Add next task step to move list, if any
         time.sleep(1/60)
         try:
+            print("current position:")
+            print(data["position"])
+            print("before update_move_list:")
+            print(move_list)
             update_move_list(move_list, tasks, tsk[0])
+            print("after update_move_list:")
+            print(move_list)
             index = tasks[0].index(tsk[0])
+            print(f"{tasks[0]=}, {tsk[0]=}")
+            print("index found:", index)
+            
         except ValueError:
             print("conti val error")
             move_list.pop(0) # edit here
@@ -245,14 +265,19 @@ def move_and_complete_tasks(G, move_list, tasks):
             # Sort move list by distance
             move_list = sort_shortest_path(G, nearest, move_list, tasks)
             continue
-
+        
+        print("going to nearest...")
         nearest = move_to_nearest_node(graph)
 
         # Sort move list by distance
         move_list = sort_shortest_path(G, nearest, move_list, tasks)
 
         # remove task we just did
-        move_list.pop(0)
+        print("move list before pop:")
+        print(move_list)
+        move_list.pop(0) # [SHIT] 왜 여기서 안빠져
+        print("move list after pop:")
+        print(move_list)
 
         # Remove completed task from tasks and move list
         for i in range(len(tasks)):
@@ -264,61 +289,69 @@ def move_and_complete_tasks(G, move_list, tasks):
     return 0
 
 def main(G) -> int:
-    print("yeah!!")
-    # idle(G)
+    # print("yeah!!")
+    # # idle(G)
     
-    tasks = get_task_list()
-    print(f"tasks: {tasks}")
-    move_list = get_move_list(tasks, G)
-    move_and_complete_tasks(G, move_list, tasks)
-    print("###################################")
-    print("move_and_complete_tasks ended")
-    print("###################################")
+    # tasks = get_task_list()
+    # print(f"tasks: {tasks}")
+    # move_list = get_move_list(tasks, G)
+    # move_and_complete_tasks(G, move_list, tasks)
+    # print("###################################")
+    # print("move_and_complete_tasks ended")
+    # print("###################################")
     
 
     # # Get tasks
-    # tasks = get_task_list()
+    tasks = get_task_list()
 
     # # Initialize places to move to
-    # move_list = get_move_list(tasks, G)
+    move_list = get_move_list(tasks, G)
 
     # set_can_vote_false()
 
-    # with open("last_task.txt", "w") as f:
-    #     f.write("nothing. No tasks completed yet")
-    # f.close()
+    with open("last_task.txt", "w") as f:
+        f.write("nothing. No tasks completed yet")
+    f.close()
 
-    # room = getGameData()["room"]
-    # with open("last_area.txt", "w") as f:
-    #     f.write(room)
-    # f.close()
+    room = getGameData()["room"]
+    with open("last_area.txt", "w") as f:
+        f.write(room)
+    f.close()
 
-    # dead = isDead()
+    dead = isDead()
 
-    # ret = 0
-    # while True:
-    #     if isInGame() and not keyboard.is_pressed('`'):
-    #         # Begin gameplay loop
-    #         if not isImpostor():
-    #             ret = move_and_complete_tasks(G, move_list, tasks)
-    #         if dead != isDead() or ret == -1:
-    #             return -1
-    #         # Idly move around
-    #         idle(G)
-    #         if dead != isDead():
-    #             return -1
-    #     else:
-    #         return 0
+    ret = 0
+    while True:
+        if isInGame() and not keyboard.is_pressed('`'):
+            # Begin gameplay loop
+            if not isImpostor():
+                ret = move_and_complete_tasks(G, move_list, tasks)
+            if dead != isDead() or ret == -1:
+                return -1
+            # Idly move around
+            idle(G)
+            if dead != isDead():
+                return -1
+        else:
+            return 0
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
     try:
         initialize_controller()
         initialize_service()
-        graph = load_G("SHIP")
+        graph = load_graph_list("SHIP")
+        G = load_G("SHIP")
         focus()
-        main(graph)
-        
+        print("The Among Us AI\nHold ` for 7 seconds to stop. Press ctrl+alt+del to forcibly stop a task.")
+        while True:
+            ret = main(G)
+            if keyboard.is_pressed('`'):
+                break
+            if ret == -1:
+                print("restarting main...")
+                main(G)
+            time.sleep(1/60)
     except KeyboardInterrupt:
         print("\n프로그램을 중단합니다.")
     except Exception as e:
@@ -328,7 +361,7 @@ if __name__ == "__main__":
         close_controller()
         close_service()
         print("프로그램이 종료되었습니다.")
-
+    
     # # Focus app
     # focus()
 

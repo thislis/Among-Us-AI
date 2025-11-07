@@ -88,8 +88,10 @@ def chat(can_vote_flag : bool):
     print("투표 시간이 되어 스킵 투표를 실행합니다.")
     vote("SKIP")
 
-    # vote done 기록
-    utility.controller.vote_done()
+    while utility.in_meeting():
+        if keyboard.is_pressed('`'):
+            raise SystemExit(0)
+        time.sleep(1/60)
 
 def solve_task(task_name=None, task_location=None) -> int:
     """ 
