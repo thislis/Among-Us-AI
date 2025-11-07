@@ -207,7 +207,8 @@ class InfoPipe:
             if not dq: # 큐가 비어있으면 체크 불가  
                 break
             
-            t_check = dq[-1][1] > self.round_offset + 10 # 최소 10초 경과
+            rel_t_old = dq[0][1] - self.round_offset
+            t_check = rel_t_old > 10 and time.time()-rel_t_old >= 2.5 # 최소 10초 경과 & 현재로부터 3초동안 움직임 없음
             s = set([x[0] for x in dq]) # 모든 플레이어 위치가 같은지
             if not (len(s) == 1 and t_check):
                 is_currently_meeting = False

@@ -804,8 +804,10 @@ def in_meeting() -> bool:
     meet = False
     if not controller:
         meet = False
+        print("controller is None")
     else:
         meet = controller.is_meeting()
+        print(f"got {meet} from controller")
     return meet
 
 def isImpostor() -> bool:

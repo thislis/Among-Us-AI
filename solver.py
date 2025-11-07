@@ -59,6 +59,7 @@ def generate_files():
 
 def chat(can_vote_flag : bool):
     if utility.isDead():
+        print("chat dead cycle")
         while utility.in_meeting():
             if keyboard.is_pressed('`'):
                 raise SystemExit(0)

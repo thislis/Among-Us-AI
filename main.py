@@ -66,6 +66,7 @@ def idle(G):
         nearest = move_to_nearest_node(graph)
         destination = choice(move_list)
         urgent = is_urgent_task()
+        
         data = getGameData()
         if "Fix Lights" in data["tasks"] and urgent is None and not isImpostor():
             dict = load_dict()
@@ -101,7 +102,7 @@ def idle(G):
             chat(can_vote_flag)
             set_can_vote_false()
             can_vote_flag = False
-            time.sleep(5)
+            time.sleep(0.5)
             nearest = move_to_nearest_node(graph)
             continue
 
@@ -165,6 +166,7 @@ def move_and_complete_tasks(G, move_list, tasks):
 
         # Restore Oxygen case
         if tsk[0] == "Restore Oxygen" and return_code == 0 and not isDead():
+            print("conti oxygen")
             nearest = move_to_nearest_node(graph)
 
             if is_urgent_task() is not None:
@@ -183,6 +185,7 @@ def move_and_complete_tasks(G, move_list, tasks):
 
         # Reset Reactor case
         if tsk[0] == "Reset Reactor" and return_code == 0 and not isDead():
+            print("conti reactor")
             nearest = move_to_nearest_node(graph)
 
             # Sort move list by distance
@@ -229,6 +232,7 @@ def move_and_complete_tasks(G, move_list, tasks):
             update_move_list(move_list, tasks, tsk[0])
             index = tasks[0].index(tsk[0])
         except ValueError:
+            print("conti val error")
             move_list.pop(0) # edit here
             nearest = move_to_nearest_node(graph)
 
@@ -248,7 +252,8 @@ def move_and_complete_tasks(G, move_list, tasks):
         for i in range(len(tasks)):
             try:
                 tasks[i].pop(index) 
-            except IndexError:
+            except IndexError:            
+                print("conti idx error")
                 continue
     return 0
 
@@ -260,7 +265,9 @@ def main(G) -> int:
     print(f"tasks: {tasks}")
     move_list = get_move_list(tasks, G)
     move_and_complete_tasks(G, move_list, tasks)
-
+    print("###################################")
+    print("move_and_complete_tasks ended")
+    print("###################################")
     
 
     # # Get tasks
