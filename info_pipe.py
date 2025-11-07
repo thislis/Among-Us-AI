@@ -9,12 +9,14 @@ from camera import Camera
 import multiprocessing as mp
 from multiprocessing.connection import Connection 
 import redis
+import pyautogui
 import json
 
 from amongus_reader import AmongUsReader
 from amongus_reader.tools.check_player_death import get_player_death_status
 
 from is_impostor import is_impostor
+from utils.task_utility import get_dimensions
 
 from locator import place
 
@@ -95,7 +97,7 @@ class InfoPipe:
             colors.append(clr)
             self.players_pos[clr] = deque([(p.position, self.round_offset)])
             if player_init_pipe:
-                key = f"amongus:{clr}:is_dead"
+                key = f"amongus:{clr.upper()}:is_dead"
                 data = "False"
                 player_init_pipe.set(key, data)
                 
@@ -103,7 +105,7 @@ class InfoPipe:
             
             if p.is_local_player:
                 if player_init_pipe:
-                    key = f"amongus:{clr}:role"
+                    key = f"amongus:{clr.upper()}:role"
                     data = "imposter" if self.is_local_impostor else "crewmate"
                     player_init_pipe.set(key, data)
             
@@ -201,23 +203,10 @@ class InfoPipe:
             table.append((time.time() - self.round_offset, cur_place))
 
         # 1. 현재 미팅 상태 계산
-        is_currently_meeting = True
+        is_currently_meeting = self.is_meeting()
         # print(f"is_meeting: {self._is_meeting}, vote_done: {self._vote_done}")
-        for clr, dq in self.players_pos.items():                
-            if not dq: # 큐가 비어있으면 체크 불가  
-                break
-            
-            rel_t_old = dq[0][1] - self.round_offset
-            t_check = rel_t_old > 10 and time.time()-rel_t_old >= 2.5 # 최소 10초 경과 & 현재로부터 3초동안 움직임 없음
-            s = set([x[0] for x in dq]) # 모든 플레이어 위치가 같은지
-            if not (len(s) == 1 and t_check):
-                is_currently_meeting = False
-                break
-            
+
         for player in self.service.list_players():
-            x, y = player.position
-            if place(x, y) != "Cafeteria":
-                is_currently_meeting = False
 
             is_dead, diag = get_player_death_status(self.service._ds, player.color_id)
             if is_dead:
@@ -242,6 +231,7 @@ class InfoPipe:
         
         # 3. 내부 상태 업데이트
         self._is_meeting = is_currently_meeting
+        self.redis.set('amongus:meeting', str(self._is_meeting))
 
     def _upload_history_to_redis(self):
         """
@@ -255,7 +245,7 @@ class InfoPipe:
         try:
             pipe = self.redis.pipeline()
             loc_p = self.service.get_local_player()
-            key = f"amongus:{loc_p.color_name}:observation"
+            key = f"amongus:{loc_p.color_name.upper()}:observation"
             value = json.dumps(self.history)
             pipe.set(key, value)
             pipe.execute()
@@ -273,14 +263,45 @@ class InfoPipe:
             return
         
         try:
-            key = f"amongus:player_alive:{color_name}"
+            key = f"amongus:player_alive:{color_name.upper()}"
             self.redis.set(key, "False") # 문자열 "False"로 저장
             print(f"[InfoPipe] Redis에 {color_name} 사망 기록 완료.")
         except Exception as e:
             print(f"[InfoPipe] !!! {color_name} 사망 기록 중 Redis 오류: {e}")
     
-    def is_meeting(self):
-        return self._is_meeting and not self._vote_done
+    def is_meeting(self) -> bool:
+        """화면에 회의 중임을 나타내는 요소가 있는지 확인합니다."""
+        dimensions = get_dimensions()
+        pos = [(1570, 90), (1600, 100), (1615, 55)]
+        colors = [(244, 243, 244), (192, 199, 209), (176, 177, 181)]
+        eps = 5
+        def L1dist(v1, v2): return sum(abs(a-b) for a, b in zip(v1, v2))
+        
+
+        for p, c in zip(pos, colors):
+            x = dimensions[0] + p[0]
+            y = dimensions[1] + p[1]
+            pixel_color = pyautogui.pixel(x, y)
+            if L1dist(pixel_color, c) > eps:
+                return False
+        return True
+    
+    def get_vote_info_from_redis(self, player_color: str) -> Optional[str]:
+        """
+        player_color의 투표 정보를 Redis에 요청합니다.
+        만약 없을 시 None이 반환됩니다.
+        """
+        def _make_key(player_color: str) -> str: return f"amongus:{player_color.upper()}:vote"
+        key = _make_key(player_color)
+        try:
+            ret: Optional[str] = self.redis.get(key)
+            if ret:
+                self.redis.delete(key)
+                return ret.upper()
+            return None
+        except Exception as e:
+            print(f"[InfoPipe] !!! {player_color} 투표 정보 요청 중 Redis 오류: {e}")
+            return None
     
     def vote_done(self):
         self._vote_done = True
@@ -347,7 +368,11 @@ def _pipe_process(child_conn: Connection):
                 elif command == "set_freq":
                     update_freq = args[0]
                     child_conn.send(True)
-                
+
+                elif command == "get_vote_info":
+                    result = pipe.get_vote_info_from_redis(args[0])
+                    child_conn.send(result)
+
                 else:
                     child_conn.send(NotImplementedError(f"Unknown command: {command}"))
 
@@ -415,6 +440,16 @@ class PipeController:
             raise RuntimeError("Pipe is already closed")
         self.pipe.send(("get_dead_players"))
         return self.pipe.recv()        
+
+    def get_vote_info(self, player_color: str) -> Optional[str]:
+        colors = {"RED", "BLUE", "GREEN", "PINK",
+                "ORANGE", "YELLOW", "BLACK", "WHITE",
+                "PURPLE", "BROWN", "CYAN", "LIME",
+                "MAROON", "ROSE", "BANANA", "GRAY",
+                "TAN", "CORAL"}
+        # assert(player_color in colors, f"[PipeController] !!! get_vote_info 에서 예기치 못한 color {player_color}를 받았습니다.")
+        self.pipe.send(("get_vote_info", player_color))
+        return self.pipe.recv()
 
     def close(self):
         """InfoPipe 프로세스에 종료 명령을 보내고 파이프를 닫습니다."""
@@ -491,18 +526,23 @@ if __name__ == "__main__":
     # controller.close()가 자동으로 호출되어 매우 편리합니다.
     try:
         with PipeController(pipewrapper(), freq=0.01) as controller:
-            # 2. 현재 히스토리 정보 요청
-            print("\n[Main Process] 현재 히스토리 정보를 요청합니다...")
-            # .get_history() 메서드 호출
-            history = controller.get_history()
-            print(f"[Main Process] 받은 히스토리 (키 개수: {len(history)})")
-            # print(history) # (너무 길면 주석 처리)
+            while True:
+                # 2. 현재 히스토리 정보 요청
+                # print("\n[Main Process] 현재 히스토리 정보를 요청합니다...")
+                # .get_history() 메서드 호출
+                history = controller.get_history()
+                # print(f"[Main Process] 받은 히스토리 (키 개수: {len(history)})")
+                # print(history) # (너무 길면 주석 처리)
 
-            # 3. 화면 캡처 요청 (800x600 리사이즈)
-            print("\n[Main Process] 화면 캡처를 요청합니다...")
-            # .get_screen() 메서드 호출
-            screen = controller.get_screen(resize_to=(800, 600))
-            print(f"[Main Process] 화면 수신 완료. 크기: {screen.shape}")
+                # 3. 화면 캡처 요청 (800x600 리사이즈)
+                # print("\n[Main Process] 화면 캡처를 요청합니다...")
+                # .get_screen() 메서드 호출
+                # screen = controller.get_screen(resize_to=(800, 600))
+                # print(f"[Main Process] 화면 수신 완료. 크기: {screen.shape}")
+
+                # controller.get_vote_info("RED")
+                print(controller.is_meeting())
+
 
     except Exception as e:
         print(f"[Main Process] 메인 프로세스 오류: {e}")
