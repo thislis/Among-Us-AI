@@ -25,3 +25,4 @@ if not is_task_done("Fill Canisters"):
     pyautogui.dragTo(dimensions[0], dimensions[1] + y_offset, 0.4)
     time.sleep(4)
     pyautogui.click()
+time.sleep(1.0)

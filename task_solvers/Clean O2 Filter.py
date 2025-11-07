@@ -43,3 +43,6 @@ while not is_task_done("Clean O2 Filter"):
 
 # Color is 200 149 66
 #       or 137  40 24
+
+
+time.sleep(1.0)

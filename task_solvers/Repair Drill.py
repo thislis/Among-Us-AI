@@ -30,3 +30,4 @@ for i in range(4):
 pyautogui.moveTo(dimensions[0], dimensions[1] + y_offset, duration=0)
 for i in range(4):
     pyautogui.click()
+time.sleep(1.0)

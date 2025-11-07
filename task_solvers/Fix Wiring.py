@@ -41,3 +41,5 @@ for color in wire_colors:
     pyautogui.moveTo(left[0] + round(dimensions[2] / 32), left[1])
     right = pyautogui.locateCenterOnScreen(f"{get_dir()}\\task_solvers\\cv2-templates\\Fix Wiring resized\\{color}Wire.png", confidence=confidence, region=right_dimensions)
     pyautogui.dragTo(right[0] - round(dimensions[2] / 19.2), right[1], duration=0.2, tween=pyautogui.easeOutQuad)
+
+time.sleep(1.0)

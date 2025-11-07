@@ -90,3 +90,5 @@ pyautogui.mouseDown()
 for point in sol:
     pyautogui.moveTo(x + x_offset*point[0], y + y_offset*point[1])
 pyautogui.mouseUp()
+
+time.sleep(1.0)

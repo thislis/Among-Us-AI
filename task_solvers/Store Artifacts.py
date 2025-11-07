@@ -45,3 +45,4 @@ pyautogui.dragTo(leaf_x2, leaf_y2, 0.8)
 
 pyautogui.moveTo(gem_x, gem_y)
 pyautogui.dragTo(gem_x2, gem_y2, 1)
+time.sleep(1.0)

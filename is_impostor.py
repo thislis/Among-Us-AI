@@ -43,79 +43,18 @@ def is_impostor() -> bool:
     빨강이 더 많으면 임포스터(True), 아니면 False를 반환합니다.
     (간단한 색검출 방식이며 환경에 따라 임계값 조정 필요)
     """
-    
-    # 잠시 대기(안정화)
-    try:
-        time.sleep(0.2)
-    except Exception:
-        return False
 
-    map_opened = False
-    try:
-        # Among Us 창 영역을 얻습니다 (창이 없으면 False)
+    # Among Us 창 영역을 얻습니다 (창이 없으면 False)
+    region = None
+    while not region:
         region = get_dimensions()
-        if region is None:
-            # 창을 찾지 못하면 더 이상 진행할 수 없습니다
-            return False
+    time.sleep(0.2)  # 창이 완전히 전경에 오도록 잠시 대기
+    
+    x = region[0] + round(region[2] / 1.32)
+    y = region[1] + round(region[3] / 1.207)
 
-        # 지도 열기 — 먼저 창을 전경으로 가져오므로 탭 입력이 해당 창에만 전달됩니다
-        pyautogui.press("tab")
-        map_opened = True
-        time.sleep(0.45)  # 지도 애니메이션을 기다립니다
-
-        # 스크린샷 (Pillow 이미지) — 창 내부 영역만 캡처
-        # pyautogui.screenshot의 region 인자는 (left, top, width, height)
-        left, top, width, height = region
-        img = pyautogui.screenshot(region=(left, top, width, height))
-
-        # 지도 닫기(옵션 — 이미지 캡처 후 바로 닫기)
-        try:
-            print("Closing map...")
-            pyautogui.press("tab")
-            map_opened = False
-        except Exception:
-            # 닫기 실패시에도 계속 처리하되 finally에서 보장
-            pass
-
-        # PIL -> numpy array (RGB) -> BGR for OpenCV
-        frame = np.array(img)[:, :, ::-1].copy()
-
-        # HSV로 변환
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-        # 빨강 범위 (두 구간)
-        lower_r1 = np.array([0, 120, 70])
-        upper_r1 = np.array([10, 255, 255])
-        lower_r2 = np.array([170, 120, 70])
-        upper_r2 = np.array([180, 255, 255])
-        mask_r1 = cv2.inRange(hsv, lower_r1, upper_r1)
-        mask_r2 = cv2.inRange(hsv, lower_r2, upper_r2)
-        mask_red = cv2.bitwise_or(mask_r1, mask_r2)
-
-        # 파랑 범위
-        lower_b = np.array([100, 150, 0])
-        upper_b = np.array([140, 255, 255])
-        mask_blue = cv2.inRange(hsv, lower_b, upper_b)
-
-        # 픽셀 수 계산
-        red_count = int(cv2.countNonZero(mask_red))
-        blue_count = int(cv2.countNonZero(mask_blue))
-
-        # 최소 픽셀 수(잡음 방지)
-        if max(red_count, blue_count) < 50:
-            return False
-
-        # 빨강이 더 많으면 임포스터로 판단
-        return red_count > blue_count
-    except Exception:
-        return False
-    finally:
-        # 만약 예외가 발생해 지도가 열린 상태로 남았다면 닫기 시도
-        if map_opened:
-            try:
-                pyautogui.press("tab")
-            except Exception:
-                pass
+    col = pyautogui.pixel(x, y)
+    return col[0] > 200 and col[2] < 5
     
 if __name__ == "__main__":
     result = is_impostor()

@@ -38,6 +38,7 @@ if data["map_id"].upper() == "PB":
             pyautogui.click(x, y_hi)
             #time.sleep(1/30)
 
+time.sleep(1.0)
 """
 screenshot = get_screenshot(s_dimensions)
 s2 = PIL.ImageOps.invert(screenshot.convert("L")).point(lambda p: 255 if p > 100 else 0).filter(ImageFilter.GaussianBlur(radius = 2))

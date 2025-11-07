@@ -72,3 +72,4 @@ with open('task_solvers\\reactor_list\\reactor_list.json', 'w') as f:
 # 7 8 9
 
 # 68,168,255
+time.sleep(1.0)

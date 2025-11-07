@@ -17,3 +17,4 @@ while not is_task_done("Reset Reactor"):
     time.sleep(1/30)
 
 pyautogui.mouseUp()
+time.sleep(1.0)

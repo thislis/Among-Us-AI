@@ -18,6 +18,8 @@ y = dimensions[1] + round(dimensions[3] / 1.16)
 pyautogui.click((x,y))
 
 click_close()
+
+time.sleep(1.0)
 raise SystemExit(0)
 
 """

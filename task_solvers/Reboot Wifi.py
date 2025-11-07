@@ -18,4 +18,5 @@ pyautogui.moveTo(x,y)
 pyautogui.dragTo(x, y2, duration=0.8)
 
 click_close()
+time.sleep(1.0)
 raise SystemExit(0)

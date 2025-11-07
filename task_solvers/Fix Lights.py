@@ -28,3 +28,4 @@ for i in range(5):
     if color[1] < 100:
         pyautogui.click(x + i * offset, y - round(dimensions[3] / 7.5))
         time.sleep(0.2)
+time.sleep(1.0)

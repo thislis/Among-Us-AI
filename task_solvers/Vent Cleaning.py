@@ -33,3 +33,4 @@ while not is_task_done("Vent Cleaning"):
                 break
 
     offset = round(offset / 2)
+time.sleep(1.0)

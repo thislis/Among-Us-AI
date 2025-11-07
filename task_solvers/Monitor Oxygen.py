@@ -46,3 +46,4 @@ async def main():
         pyautogui.mouseUp()
 
 asyncio.run(main())
+time.sleep(1.0)

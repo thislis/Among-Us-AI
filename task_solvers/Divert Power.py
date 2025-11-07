@@ -37,3 +37,5 @@ else:
     x = dimensions[0] + round(dimensions[2] / 2)
     y = dimensions[1] + round(dimensions[3] / 2)
     pyautogui.click(x,y)
+
+time.sleep(1.0)

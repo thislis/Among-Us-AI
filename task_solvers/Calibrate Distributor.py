@@ -68,3 +68,5 @@ while not is_task_done(task="Calibrate Distributor"):
             done[2] = True
         else:
             continue
+
+time.sleep(1.0)

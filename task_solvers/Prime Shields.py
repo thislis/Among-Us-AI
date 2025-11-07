@@ -40,3 +40,4 @@ for x in range(0, screenshot.height - 10, 5):
                 break
 
 # 242,24,28
+time.sleep(1.0)

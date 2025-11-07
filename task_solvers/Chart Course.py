@@ -71,3 +71,5 @@ while not is_task_done("Chart Course"):
 
 # Color is 36 111 161
 # Ship Color is 37 111 159
+
+time.sleep(1.0)

@@ -48,3 +48,4 @@ while not is_task_done("Swipe Card"):
     duration -= 0.4
     pyautogui.moveTo(x,y)
     pyautogui.dragTo(x2,y, duration=duration)
+time.sleep(1.0)

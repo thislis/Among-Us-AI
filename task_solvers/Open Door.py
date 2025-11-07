@@ -30,3 +30,4 @@ y_offset = round(dimensions[3] / 5.57)
 for i in range(2):
     for j in range(4):
         pyautogui.click(x + x_offset*i, y + y_offset*j)
+time.sleep(1.0)

@@ -30,3 +30,4 @@ pyautogui.moveTo(x,y)
 pyautogui.dragTo(x2, y, 0.5)
 while not is_task_done("Scan Boarding Pass"):
     time.sleep(1/15)
+time.sleep(1.0)

@@ -27,3 +27,4 @@ while pos is None:
     except:
         time.sleep(5)
 pyautogui.click(pos[0], pos[1] + round(y_offset / 2.87))
+time.sleep(1.0)

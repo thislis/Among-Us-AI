@@ -41,3 +41,5 @@ while not is_task_done("Insert Keys"):
 
 # 206 130 24
 
+
+time.sleep(1.0)

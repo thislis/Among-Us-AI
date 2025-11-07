@@ -47,3 +47,5 @@ for num in nums:
     pyautogui.click(dimensions[0] + round(dimensions[2] / num_coords[n][0]), dimensions[1] + round(dimensions[3] / num_coords[n][1]))
 
 pyautogui.click(dimensions[0] + round(dimensions[2] / num_coords[10][0]), dimensions[1] + round(dimensions[3] / num_coords[10][1]))
+
+time.sleep(1.0)

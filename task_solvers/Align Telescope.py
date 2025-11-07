@@ -60,3 +60,5 @@ while not is_task_done("Align Telescope"):
     pyautogui.moveTo(x, y, 0.6)
     pyautogui.mouseUp()
     time.sleep(1/15)
+
+time.sleep(1.0)

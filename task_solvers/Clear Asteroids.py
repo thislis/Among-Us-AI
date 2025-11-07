@@ -42,3 +42,6 @@ while not is_task_done(task):
         else:
             break
     exit = False
+
+    
+time.sleep(1.0)

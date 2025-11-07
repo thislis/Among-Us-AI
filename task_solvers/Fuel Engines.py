@@ -19,3 +19,4 @@ y = dimensions[1] + round(dimensions[3] / 1.24)
 
 pyautogui.moveTo((x,y))
 pyautogui.dragTo(x,y, duration=3.0)
+time.sleep(1.0)

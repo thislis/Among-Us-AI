@@ -26,3 +26,5 @@ for i in range(1, 11):
             raise SystemExit(0)
     pyautogui.click(pos)
     pos = None
+
+time.sleep(1.0)

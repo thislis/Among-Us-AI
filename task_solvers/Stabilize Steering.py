@@ -23,3 +23,4 @@ pos = pyautogui.locateCenterOnScreen(f"{get_dir()}\\task_solvers\\cv2-templates\
 
 pyautogui.moveTo(pos)
 pyautogui.dragTo(center[0] + dimensions[0], center[1] + dimensions[1], duration=0.2, tween=pyautogui.easeOutQuad)
+time.sleep(1.0)

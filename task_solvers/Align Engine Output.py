@@ -34,3 +34,5 @@ while not is_task_done("Align Engine Output"):
                 pyautogui.moveTo(dimensions[0] + x + 10, dimensions[1] + y) 
                 pyautogui.dragTo(dimensions[0] + x + 10, y_center, abs((dimensions[1] + y) - y_center) / 400)
                 raise SystemExit(0)
+
+time.sleep(1.0)
