@@ -135,14 +135,20 @@ def move_and_complete_tasks(G, move_list, tasks):
 
         # If we are in a meeting,
         if move_return_code == 1:
+            print("move returned with meeting")
             # chat
             chat(can_vote_flag)
+            print("chat returened")
             set_can_vote_false()
+            print("set-can_vote_false returned")
             can_vote_flag = False
+            print("can_vote_flag set to false")
             time.sleep(5)
+            print("slept 5 sec")
 
             # Move to nearest graph node and continue
             nearest = move_to_nearest_node(graph)
+            print("shit???")
             continue
         tsk = get_nearest_task(tasks[0])
         print(f"Nearest task: {tsk[0]} at distance {tsk[1]} in {tsk[2]}")

@@ -202,7 +202,7 @@ class InfoPipe:
 
         # 1. 현재 미팅 상태 계산
         is_currently_meeting = True
-        print(f"is_meeting: {self._is_meeting}, vote_done: {self._vote_done}")
+        # print(f"is_meeting: {self._is_meeting}, vote_done: {self._vote_done}")
         for clr, dq in self.players_pos.items():                
             if not dq: # 큐가 비어있으면 체크 불가  
                 break
@@ -342,9 +342,11 @@ def _pipe_process(child_conn: Connection):
                 
                 elif command == "vote_done":
                     pipe.vote_done()
-                
+                    child_conn.send(True)
+
                 elif command == "set_freq":
                     update_freq = args[0]
+                    child_conn.send(True)
                 
                 else:
                     child_conn.send(NotImplementedError(f"Unknown command: {command}"))
