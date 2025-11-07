@@ -126,11 +126,12 @@ def solve_task(task_name=None, task_location=None) -> int:
         time.sleep(1.5)
         urgent = utility.is_urgent_task()
         if urgent is None:
-            # Open solver file
-            if random.randint(1,3) % 3 == 0:
-                p = subprocess.Popen([PYTHON_PATH, os.path.join(SOLVER_PATH, "Sabotage.py")])
-            else:
-                return 0
+            return 0
+            # # Open solver file
+            # if random.randint(1,3) % 3 == 0:
+            #     p = subprocess.Popen([PYTHON_PATH, os.path.join(SOLVER_PATH, "Sabotage.py")])
+            # else:
+            #     return 0
         else:
             if utility.in_meeting():
                 return 1
