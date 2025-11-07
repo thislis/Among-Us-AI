@@ -48,7 +48,6 @@ class InfoPipe:
                  redis_host: str = 'localhost', 
                  redis_port: int = 6379, 
                  redis_password: str = None):
-        self.camera = Camera()
         self.service = AmongUsReader()
 
         self.history = dict()
@@ -66,7 +65,10 @@ class InfoPipe:
 
         self.dead_players = set()
         self.is_local_impostor = is_impostor()
+        
+        self._vote_done = True
         self._is_meeting = False
+        
         self.caught_kill = False
         self.suspicious_player = None
         
@@ -200,14 +202,9 @@ class InfoPipe:
 
         # 1. 현재 미팅 상태 계산
         is_currently_meeting = True
-        for clr, dq in self.players_pos.items():
-            x, y = dq[-1][0]
-            if place(x, y) != "Cafeteria":
-                is_currently_meeting == False
-                break
-                
-            if not dq: # 큐가 비어있으면 체크 불가
-                is_currently_meeting = False
+        print(f"is_meeting: {self._is_meeting}, vote_done: {self._vote_done}")
+        for clr, dq in self.players_pos.items():                
+            if not dq: # 큐가 비어있으면 체크 불가  
                 break
             
             t_check = dq[-1][1] > self.round_offset + 10 # 최소 10초 경과
@@ -217,20 +214,30 @@ class InfoPipe:
                 break
             
         for player in self.service.list_players():
+            x, y = player.position
+            if place(x, y) != "Cafeteria":
+                is_currently_meeting = False
+
             is_dead, diag = get_player_death_status(self.service._ds, player.color_id)
             if is_dead:
                 self.dead_players.add(player.color_name)
 
-        if not is_currently_meeting and self._is_meeting:
-            self.caught_kill = False
 
         # 2. 상태 전이(False -> True) 감지
         if is_currently_meeting and not self._is_meeting:
             print("[InfoPipe] ⭐️ 미팅 시작 감지! 히스토리를 Redis에 업로드합니다.")
+            self._vote_done = False
             self._upload_history_to_redis()
         
         elif not is_currently_meeting and self._is_meeting:
+            self.caught_kill = False
             self.round_offset = time.time()
+            for player in self.service.list_players():
+                is_dead, diag = get_player_death_status(self.service._ds, player.color_id)
+                if is_dead:
+                    self.players_warm[p.color_name] = False
+                    self.dead_players.add(player.color_name)
+
         
         # 3. 내부 상태 업데이트
         self._is_meeting = is_currently_meeting
@@ -272,7 +279,10 @@ class InfoPipe:
             print(f"[InfoPipe] !!! {color_name} 사망 기록 중 Redis 오류: {e}")
     
     def is_meeting(self):
-        return self._is_meeting
+        return self._is_meeting and not self._vote_done
+    
+    def vote_done(self):
+        self._vote_done = True
     
 # --- (자식 프로세스 실행 함수는 그대로 둡니다) ---
 def _pipe_process(child_conn: Connection):
@@ -328,6 +338,9 @@ def _pipe_process(child_conn: Connection):
                 elif command == "is_meeting":
                     is_meeting = pipe.is_meeting()
                     child_conn.send(is_meeting)
+                
+                elif command == "vote_done":
+                    pipe.vote_done()
                 
                 elif command == "set_freq":
                     update_freq = args[0]
@@ -426,6 +439,13 @@ class PipeController:
         if self._closed:
             raise RuntimeError("Pipe is already closed")
         self.pipe.send(("is_meeting",))
+        return self.pipe.recv()
+    
+    def vote_done(self) -> bool:
+        """InfoPipe에 투표 완료 신호를 알립니다."""
+        if self._closed:
+            raise RuntimeError("Pipe is already closed")
+        self.pipe.send(("vote_done",))
         return self.pipe.recv()
 
     def __enter__(self):
