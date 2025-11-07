@@ -809,8 +809,10 @@ def update_move_list(move_list, old_tasks, tsk):
     
     return task
 
-def is_meeting() -> bool:
+def in_meeting() -> bool:
     """화면에 회의 중임을 나타내는 요소가 있는지 확인합니다."""
+    if isDead():
+        return False
     dimensions = get_dimensions()
     pos = [(1570, 90), (1600, 100), (1615, 55)]
     colors = [(244, 243, 244), (192, 199, 209), (176, 177, 181)]
@@ -821,7 +823,7 @@ def is_meeting() -> bool:
         pixel_color = pyautogui.pixel(x, y)
         if L1dist(pixel_color, c) > eps:
             return False
-    return True
+    return True 
     # meet = False
     # if not controller:
     #     meet = False
@@ -836,6 +838,10 @@ def isImpostor() -> bool:
     return data["status"] == "impostor"
 
 def isDead() -> bool:
+    if not hasattr(isDead, "history"):
+        isDead.history = False
+    if isDead.history:
+        return True
     dimensions = get_dimensions()
     x = dimensions[0] + round(dimensions[2] / 1.19)
     y = dimensions[1] + round(dimensions[3] / 1.17)
@@ -844,7 +850,10 @@ def isDead() -> bool:
     # print(f"Is dead: {col[0] == 8 and col[1] == 105 and col[2] == 206}")
     ref_col = (8, 105, 206)
     eps = 5
-    return L1dist(col, ref_col) <= eps
+    dead = L1dist(col, ref_col) <= eps
+    if dead:
+        isDead.history = True
+    return dead
 
 def isInGame() -> bool:
     return True

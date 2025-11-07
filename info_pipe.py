@@ -15,8 +15,7 @@ import json
 from amongus_reader import AmongUsReader
 from amongus_reader.tools.check_player_death import get_player_death_status
 
-from is_impostor import is_impostor
-from utils.task_utility import get_dimensions
+from utility import isImpostor, in_meeting
 
 from locator import place
 
@@ -66,9 +65,8 @@ class InfoPipe:
             self.history[clr] = [(0, "Cafeteria")] # history table. Everybody starts at Cafeteria
 
         self.dead_players = set()
-        self.is_local_impostor = is_impostor()
+        self.is_local_impostor = isImpostor()
         
-        self._vote_done = True
         self._is_meeting = False
         
         self.caught_kill = False
@@ -216,7 +214,6 @@ class InfoPipe:
         # 2. 상태 전이(False -> True) 감지
         if is_currently_meeting and not self._is_meeting:
             print("[InfoPipe] ⭐️ 미팅 시작 감지! 히스토리를 Redis에 업로드합니다.")
-            self._vote_done = False
             self._upload_history_to_redis()
         
         elif not is_currently_meeting and self._is_meeting:
@@ -270,21 +267,7 @@ class InfoPipe:
             print(f"[InfoPipe] !!! {color_name} 사망 기록 중 Redis 오류: {e}")
     
     def is_meeting(self) -> bool:
-        """화면에 회의 중임을 나타내는 요소가 있는지 확인합니다."""
-        dimensions = get_dimensions()
-        pos = [(1570, 90), (1600, 100), (1615, 55)]
-        colors = [(244, 243, 244), (192, 199, 209), (176, 177, 181)]
-        eps = 5
-        def L1dist(v1, v2): return sum(abs(a-b) for a, b in zip(v1, v2))
-        
-
-        for p, c in zip(pos, colors):
-            x = dimensions[0] + p[0]
-            y = dimensions[1] + p[1]
-            pixel_color = pyautogui.pixel(x, y)
-            if L1dist(pixel_color, c) > eps:
-                return False
-        return True
+        return in_meeting()
     
     def get_vote_info_from_redis(self, player_color: str) -> Optional[str]:
         """
@@ -302,9 +285,6 @@ class InfoPipe:
         except Exception as e:
             print(f"[InfoPipe] !!! {player_color} 투표 정보 요청 중 Redis 오류: {e}")
             return None
-    
-    def vote_done(self):
-        self._vote_done = True
     
 # --- (자식 프로세스 실행 함수는 그대로 둡니다) ---
 def _pipe_process(child_conn: Connection):
