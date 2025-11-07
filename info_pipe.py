@@ -7,7 +7,7 @@ import time
 from camera import Camera
 
 import multiprocessing as mp
-from multiprocessing.connection import Connection 
+from multiprocessing.connection import Connection
 import redis
 import pyautogui
 import json
@@ -21,21 +21,24 @@ from locator import place
 
 from collections import deque
 
+
 def can_see(me, opp, is_imposter):
-    x1, y1 = me; x2, y2 = opp
+    x1, y1 = me
+    x2, y2 = opp
 
     if is_imposter:
-        a, b = 610.1303148042931*(5/3), 610.1303148042931*(5/3)
+        a, b = 610.1303148042931 * (5 / 3), 610.1303148042931 * (5 / 3)
     else:
         a, b = 610.1303148042931, 610.1303148042931
     real_a = 3.2729492187499996
-    ratio = real_a/a
+    ratio = real_a / a
     a = real_a
     b *= ratio
 
-    dx, dy = x2-x1, y2-y1
-    val = (dx/a)**2 + (dy/b)**2
-    return val<=1
+    dx, dy = x2 - x1, y2 - y1
+    val = (dx / a) ** 2 + (dy / b) ** 2
+    return val <= 1
+
 
 class InfoPipe:
     """
@@ -45,10 +48,12 @@ class InfoPipe:
     Among Us 예시 레지스트리를 기본값으로 포함함.
     """
 
-    def __init__(self,
-                 redis_host: str = 'localhost', 
-                 redis_port: int = 6379, 
-                 redis_password: str = None):
+    def __init__(
+        self,
+        redis_host: str = "localhost",
+        redis_port: int = 6379,
+        redis_password: str = None,
+    ):
         self.service = AmongUsReader()
 
         self.history = dict()
@@ -62,23 +67,25 @@ class InfoPipe:
             if p.is_local_player:
                 continue
             clr = p.color_name
-            self.history[clr] = [(0, "Cafeteria")] # history table. Everybody starts at Cafeteria
+            self.history[clr] = [
+                (0, "Cafeteria")
+            ]  # history table. Everybody starts at Cafeteria
 
         self.dead_players = set()
         self.is_local_impostor = utility.isImpostor()
-        
+
         self._is_meeting = False
-        
+
         self.caught_kill = False
         self.suspicious_player = None
-        
+
         print(f"[InfoPipe] Redis 서버에 연결 시도... ({redis_host}:{redis_port})")
         try:
             self.redis = redis.Redis(
                 host=redis_host,
                 port=redis_port,
                 password=redis_password,
-                decode_responses=True  # <--- 바이트 대신 문자열로 자동 디코딩
+                decode_responses=True,  # <--- 바이트 대신 문자열로 자동 디코딩
             )
             self.redis.ping()
             print("[InfoPipe] Redis 연결 성공.")
@@ -88,7 +95,7 @@ class InfoPipe:
             self.redis = None
 
         player_init_pipe = self.redis.pipeline() if self.redis else None
-        
+
         colors = []
         for p in players:
             clr = p.color_name
@@ -98,16 +105,18 @@ class InfoPipe:
                 key = f"amongus:{clr.upper()}:is_dead"
                 data = "False"
                 player_init_pipe.set(key, data)
-                
+                key = f"amongus:{clr.upper()}:vote"
+                data = None
+                player_init_pipe.set(key, json.dumps(data))
+
             self.history[clr] = [(0, "Cafeteria")]
-            
+
             if p.is_local_player:
                 if player_init_pipe:
                     key = f"amongus:{clr.upper()}:role"
                     data = "imposter" if self.is_local_impostor else "crewmate"
                     player_init_pipe.set(key, data)
-            
-            
+
         self.history["observed_kill"] = None
 
         if player_init_pipe:
@@ -117,7 +126,7 @@ class InfoPipe:
                 print("[InfoPipe] Redis에 모든 플레이어 'alive' 플래그 초기화 완료.")
             except Exception as e:
                 print(f"[InfoPipe] !!! 'alive' 플래그 초기화 실패: {e}")
-        
+
     def get_screen(self, resize_to: Optional[Tuple[int, int]] = None):
         """
         현재 화면(BGR)을 Camera를 통해 받아온다.
@@ -137,7 +146,10 @@ class InfoPipe:
                 # print(f"I'm at {place(x, y)} ({x, y})")
                 continue
             pos = p.position
-            if can_see(p_me, pos, self.is_local_impostor) and self.players_warm[p.color_name]:
+            if (
+                can_see(p_me, pos, self.is_local_impostor)
+                and self.players_warm[p.color_name]
+            ):
                 seens.append(p)
             else:
                 unseens.append(p)
@@ -154,10 +166,11 @@ class InfoPipe:
             """
             a가 b보다 ref에 가까우면/같으면 True, 아니면 False
             """
-            if ref_pos is None or a_pos is None or b_pos is None: return
+            if ref_pos is None or a_pos is None or b_pos is None:
+                return
 
-            dist_with_a = (ref_pos[0] - a_pos[0])**2 + (ref_pos[1] - a_pos[1])**2
-            dist_with_b = (ref_pos[0] - b_pos[0])**2 + (ref_pos[1] - b_pos[1])**2
+            dist_with_a = (ref_pos[0] - a_pos[0]) ** 2 + (ref_pos[1] - a_pos[1]) ** 2
+            dist_with_b = (ref_pos[0] - b_pos[0]) ** 2 + (ref_pos[1] - b_pos[1]) ** 2
             return dist_with_a <= dist_with_b
 
         cur = time.time()
@@ -177,13 +190,18 @@ class InfoPipe:
             cur_place = place(*seen.position)
             is_seen_dead = seen.color_name in self.dead_players
             if is_seen_dead and self.players_warm[seen.color_name]:
-                self.caught_kill = True # should be initialized after meeting
+                self.caught_kill = True  # should be initialized after meeting
                 self.suspicious_player = None
                 for close_player in seens:
-                    if close_player.color_id==self.service.get_local_player(): continue
-                    if self.suspicious_player is None or closer(seen.position, self.suspicious_player.position, close_player.position):
+                    if close_player.color_id == self.service.get_local_player():
+                        continue
+                    if self.suspicious_player is None or closer(
+                        seen.position,
+                        self.suspicious_player.position,
+                        close_player.position,
+                    ):
                         self.suspicious_player = close_player
-                
+
                 self.players_warm[seen.color_name] = False
             if cur_place == prev_place:
                 continue
@@ -210,25 +228,43 @@ class InfoPipe:
             if is_dead:
                 self.dead_players.add(player.color_name)
 
-
         # 2. 상태 전이(False -> True) 감지
         if is_currently_meeting and not self._is_meeting:
-            print("[InfoPipe] ⭐️ 미팅 시작 감지! 히스토리를 Redis에 업로드합니다.")
-            self._upload_history_to_redis()
-        
+            player = self.service.get_local_player()
+            old_pos = player.position
+            pyautogui.keyDown('w')
+            time.sleep(0.05)
+            pyautogui.keyUp('w')
+            pyautogui.keyDown('a')
+            time.sleep(0.05)
+            pyautogui.keyUp('a')
+            new_pos = self.service.get_local_player().position
+            if old_pos[0] != new_pos[0] or old_pos[1] != new_pos[1]:
+                is_currently_meeting = False
+                print("[InfoPipe] ⭐️ 미팅 시작 감지 오탐! 위치 변화로 인해 복구합니다.")
+            else:
+                print("[InfoPipe] ⭐️ 미팅 시작 감지! 히스토리를 Redis에 업로드합니다.")
+                self._upload_history_to_redis()
+
         elif not is_currently_meeting and self._is_meeting:
+            for p in self.service.list_players():
+                key = f"amongus:{p.color_name.upper()}:vote"
+                data = None
+                pipe = self.redis.pipeline()
+                pipe.set(key, json.dumps(data))
             self.caught_kill = False
             self.round_offset = time.time()
             for player in self.service.list_players():
-                is_dead, diag = get_player_death_status(self.service._ds, player.color_id)
+                is_dead, diag = get_player_death_status(
+                    self.service._ds, player.color_id
+                )
                 if is_dead:
                     self.players_warm[p.color_name] = False
                     self.dead_players.add(player.color_name)
 
-        
         # 3. 내부 상태 업데이트
         self._is_meeting = is_currently_meeting
-        self.redis.set('amongus:meeting', str(self._is_meeting))
+        self.redis.set("amongus:meeting", str(self._is_meeting))
 
     def _upload_history_to_redis(self):
         """
@@ -258,26 +294,29 @@ class InfoPipe:
         if not self.redis:
             print(f"[InfoPipe] (No Redis) {color_name} 사망 기록 스킵됨.")
             return
-        
+
         try:
             key = f"amongus:player_alive:{color_name.upper()}"
-            self.redis.set(key, "False") # 문자열 "False"로 저장
+            self.redis.set(key, "False")  # 문자열 "False"로 저장
             print(f"[InfoPipe] Redis에 {color_name} 사망 기록 완료.")
         except Exception as e:
             print(f"[InfoPipe] !!! {color_name} 사망 기록 중 Redis 오류: {e}")
-    
+
     def is_meeting(self) -> bool:
         return utility.in_meeting()
-    
+
     def get_vote_info_from_redis(self, player_color: str) -> Optional[str]:
         """
         player_color의 투표 정보를 Redis에 요청합니다.
         만약 없을 시 None이 반환됩니다.
         """
-        def _make_key(player_color: str) -> str: return f"amongus:{player_color.upper()}:vote"
+
+        def _make_key(player_color: str) -> str:
+            return f"amongus:{player_color.upper()}:vote"
+
         key = _make_key(player_color)
         try:
-            ret: Optional[str] = self.redis.get(key)
+            ret: Optional[str] = json.loads(self.redis.get(key))
             if ret:
                 self.redis.delete(key)
                 return ret.upper()
@@ -285,7 +324,8 @@ class InfoPipe:
         except Exception as e:
             print(f"[InfoPipe] !!! {player_color} 투표 정보 요청 중 Redis 오류: {e}")
             return None
-    
+
+
 # --- (자식 프로세스 실행 함수는 그대로 둡니다) ---
 def _pipe_process(child_conn: Connection):
     """
@@ -294,9 +334,9 @@ def _pipe_process(child_conn: Connection):
     부모의 요청(interrupt)이 있는지 'poll'로 확인합니다.
     """
     print("[InfoPipe Process] 비동기 수집기 프로세스 시작됨.")
-    pipe = InfoPipe(redis_host="134.185.110.57",
-                    redis_port="16379",
-                    redis_password="AmongSus")
+    pipe = InfoPipe(
+        redis_host="134.185.110.57", redis_port="16379", redis_password="AmongSus"
+    )
     running = True
     update_freq = 0.01
 
@@ -320,11 +360,11 @@ def _pipe_process(child_conn: Connection):
                     resize_to = args[0] if args else None
                     screen = pipe.get_screen(resize_to=resize_to)
                     child_conn.send(screen)
-                    
+
                 elif command == "get_seen_players":
                     result = pipe.get_seen_players()
                     child_conn.send(result)
-                    
+
                 elif command == "get_history":
                     # update_info()가 계속 갱신한 최신 히스토리 전송
                     child_conn.send(pipe.history)
@@ -335,12 +375,12 @@ def _pipe_process(child_conn: Connection):
                 elif command == "stop":
                     print("[InfoPipe Process] InfoPipe 프로세스 종료 신호 받음.")
                     child_conn.send("stopped")
-                    running = False # 루프 탈출
-                
+                    running = False  # 루프 탈출
+
                 elif command == "is_meeting":
                     is_meeting = pipe.is_meeting()
                     child_conn.send(is_meeting)
-                
+
                 # elif command == "vote_done":
                 #     pipe.vote_done()
                 #     child_conn.send(True)
@@ -360,10 +400,11 @@ def _pipe_process(child_conn: Connection):
             # CPU 점유율이 100%로 치솟는 것을 방지하기 위해
             # 아주 짧은 sleep을 추가할 수 있습니다.
             # (게임 정보 갱신 주기와 AI의 요청 빈도에 따라 조절)
-            time.sleep(update_freq) # 1ms (CPU 부담 완화)
+            time.sleep(update_freq)  # 1ms (CPU 부담 완화)
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         print(f"[InfoPipe Process] 오류 발생: {e}")
         raise e
@@ -380,13 +421,14 @@ class PipeController:
 
     `with` 구문과 함께 사용하는 것을 권장합니다.
     """
+
     def __init__(self, pipe_connection: Connection, freq: float = 0.01):
         if pipe_connection is None:
             raise ValueError("Pipe connection cannot be None")
         self.pipe = pipe_connection
         self._closed = False
         self.update_freq = freq
-    
+
     def set_freq(self):
         """자식 프로세스의 update_info frequency를 설정합니다"""
         if self._closed:
@@ -419,14 +461,29 @@ class PipeController:
         if self._closed:
             raise RuntimeError("Pipe is already closed")
         self.pipe.send(("get_dead_players"))
-        return self.pipe.recv()        
+        return self.pipe.recv()
 
     def get_vote_info(self, player_color: str) -> Optional[str]:
-        colors = {"RED", "BLUE", "GREEN", "PINK",
-                "ORANGE", "YELLOW", "BLACK", "WHITE",
-                "PURPLE", "BROWN", "CYAN", "LIME",
-                "MAROON", "ROSE", "BANANA", "GRAY",
-                "TAN", "CORAL"}
+        colors = {
+            "RED",
+            "BLUE",
+            "GREEN",
+            "PINK",
+            "ORANGE",
+            "YELLOW",
+            "BLACK",
+            "WHITE",
+            "PURPLE",
+            "BROWN",
+            "CYAN",
+            "LIME",
+            "MAROON",
+            "ROSE",
+            "BANANA",
+            "GRAY",
+            "TAN",
+            "CORAL",
+        }
         # assert(player_color in colors, f"[PipeController] !!! get_vote_info 에서 예기치 못한 color {player_color}를 받았습니다.")
         self.pipe.send(("get_vote_info", player_color))
         return self.pipe.recv()
@@ -458,7 +515,7 @@ class PipeController:
             raise RuntimeError("Pipe is already closed")
         self.pipe.send(("is_meeting",))
         return self.pipe.recv()
-    
+
     # def vote_done(self) -> bool:
     #     """InfoPipe에 투표 완료 신호를 알립니다."""
     #     if self._closed:
@@ -481,16 +538,20 @@ class PipeController:
         (단, 'with'나 명시적 .close() 사용 권장)
         """
         if not self._closed:
-            print("[PipeController] 경고: 파이프가 자동으로 닫힙니다 (close() 명시적 호출 권장).")
+            print(
+                "[PipeController] 경고: 파이프가 자동으로 닫힙니다 (close() 명시적 호출 권장)."
+            )
             self.close()
 
 
-controller: PipeController = None # controller를 None으로 초기화
+controller: PipeController = None  # controller를 None으로 초기화
+
 
 def get_controller() -> PipeController:
     """컨트롤러에 접근할 때 사용하는 함수."""
     global controller
     return controller
+
 
 def initialize_controller():
     """
@@ -502,6 +563,7 @@ def initialize_controller():
         print("[Utility] PipeController를 초기화합니다...")
         controller = PipeController(pipewrapper())
 
+
 def close_controller():
     """메인 프로그램 종료 시 컨트롤러를 닫는 함수."""
     global controller
@@ -509,6 +571,7 @@ def close_controller():
         print("[Utility] PipeController를 닫습니다...")
         controller.close()
         controller = None
+
 
 # -------------------- (pipewrapper는 그대로 둡니다) --------------------
 def pipewrapper() -> Connection:
@@ -520,6 +583,7 @@ def pipewrapper() -> Connection:
     p = mp.Process(target=_pipe_process, args=(child_conn,))
     p.start()
     return parent_conn
+
 
 # -------------------- 사용 예 (수정됨) --------------------
 if __name__ == "__main__":
@@ -546,7 +610,6 @@ if __name__ == "__main__":
 
                 # controller.get_vote_info("RED")
                 print(controller.is_meeting())
-
 
     except Exception as e:
         print(f"[Main Process] 메인 프로세스 오류: {e}")
